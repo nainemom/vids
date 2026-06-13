@@ -1,10 +1,9 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
+import './main.css'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <h1 className="font-bold text-2xl text-center m-4">Vids</h1>
   </StrictMode>,
 )

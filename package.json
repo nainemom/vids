@@ -10,9 +10,11 @@
     "preview": "vite preview --port 6170"
   },
   "dependencies": {
+    "@tailwindcss/vite": "^4.3.1",
     "electron": "^42.4.0",
     "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "react-dom": "^19.2.6",
+    "tailwindcss": "^4.3.1"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
