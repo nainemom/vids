@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Transparent backdrop so the app root's rounded corners reveal the desktop
+   (the window itself is transparent — see electron/main.ts). */
+html,
+body,
+#root {
+  height: 100%;
+  background: transparent;
+}
+
 /* Hide scrollbars — a TV has no pointer, navigation is via the remote, and
    scroll position is driven by focus (scrollIntoView), not by a scrollbar. */
 .no-scrollbar {

@@ -4,6 +4,8 @@ type FocusableCardProps = {
   label: string;
   /** Called when the user presses Enter / the remote's OK button while focused. */
   onSelect?: (label: string) => void;
+  /** Called when this card becomes focused — used to drive the header title. */
+  onHighlight?: (label: string) => void;
 };
 
 // Where the focused card should land in the viewport. `scrollIntoView` walks up
@@ -22,10 +24,17 @@ const SCROLL_OPTIONS: ScrollIntoViewOptions = {
  * navigates with the arrow keys / remote D-pad — we only have to style it. On
  * focus we scroll the element into view so it's never off-screen.
  */
-export function FocusableCard({ label, onSelect }: FocusableCardProps) {
+export function FocusableCard({
+  label,
+  onSelect,
+  onHighlight,
+}: FocusableCardProps) {
   const { ref, focused } = useFocusable({
     onEnterPress: () => onSelect?.(label),
-    onFocus: ({ node }) => node?.scrollIntoView(SCROLL_OPTIONS),
+    onFocus: ({ node }) => {
+      onHighlight?.(label);
+      node?.scrollIntoView(SCROLL_OPTIONS);
+    },
   });
 
   return (
