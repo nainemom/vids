@@ -1,20 +1,20 @@
 import type { ComponentType } from 'react';
+import { useLocation } from 'wouter';
 import {
   FocusContext,
   useFocusable,
 } from '@noriginmedia/norigin-spatial-navigation';
 import { Home, Search, FolderOpen, Settings, Film } from 'lucide-react';
 
-export type NavKey = 'home' | 'search' | 'source' | 'settings';
-
 type IconProps = { className?: string };
 
-const NAV_ITEMS: { key: NavKey; label: string; Icon: ComponentType<IconProps> }[] =
+/** The nav rail items and the route each one navigates to. */
+const NAV_ITEMS: { path: string; label: string; Icon: ComponentType<IconProps> }[] =
   [
-    { key: 'home', label: 'Home', Icon: Home },
-    { key: 'search', label: 'Search', Icon: Search },
-    { key: 'source', label: 'Source', Icon: FolderOpen },
-    { key: 'settings', label: 'Settings', Icon: Settings },
+    { path: '/', label: 'Home', Icon: Home },
+    { path: '/search', label: 'Search', Icon: Search },
+    { path: '/sources', label: 'Source', Icon: FolderOpen },
+    { path: '/settings', label: 'Settings', Icon: Settings },
   ];
 
 /** Collapsed (always-reserved) and expanded (overlay) widths. */
@@ -58,14 +58,10 @@ function NavItem({ label, Icon, expanded, active, onSelect }: NavItemProps) {
   );
 }
 
-type SidebarProps = {
-  active: NavKey;
-  onNavigate: (key: NavKey) => void;
-};
-
 /**
  * Icon-only rail that expands to show labels whenever focus is anywhere inside
- * it (`trackChildren` -> `hasFocusedChild`).
+ * it (`trackChildren` -> `hasFocusedChild`). Selecting an item routes to its
+ * path via wouter; the active item is derived from the current location.
  *
  * IMPORTANT: the focusable <nav> keeps a FIXED collapsed width — that's the box
  * the navigation engine measures, so focus can always move right back into the
@@ -74,11 +70,12 @@ type SidebarProps = {
  * itself grew, its right edge would pass the content's left edge and the engine
  * would no longer see the content as "to the right" — trapping focus inside.)
  */
-export function Sidebar({ active, onNavigate }: SidebarProps) {
+export function Sidebar() {
   const { ref, focusKey, hasFocusedChild } = useFocusable({
     trackChildren: true,
     saveLastFocusedChild: true,
   });
+  const [location, setLocation] = useLocation();
 
   const expanded = hasFocusedChild;
 
@@ -109,14 +106,14 @@ export function Sidebar({ active, onNavigate }: SidebarProps) {
             </span>
           </div>
 
-          {NAV_ITEMS.map(({ key, label, Icon }) => (
+          {NAV_ITEMS.map(({ path, label, Icon }) => (
             <NavItem
-              key={key}
+              key={path}
               label={label}
               Icon={Icon}
               expanded={expanded}
-              active={active === key}
-              onSelect={() => onNavigate(key)}
+              active={location === path}
+              onSelect={() => setLocation(path)}
             />
           ))}
         </div>

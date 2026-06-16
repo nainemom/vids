@@ -1,0 +1,36 @@
+import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
+
+type ListItemProps = {
+  label: string;
+  /** Optional secondary text shown on the right (e.g. a current value/path). */
+  hint?: string;
+  onSelect?: () => void;
+};
+
+/**
+ * A focusable full-width row used by the simpler list-style pages (Sources,
+ * Settings, Search). Same focus styling language as FocusableCard so the whole
+ * app reacts consistently to the remote/arrow keys.
+ */
+export function ListItem({ label, hint, onSelect }: ListItemProps) {
+  const { ref, focused } = useFocusable({ onEnterPress: () => onSelect?.() });
+
+  return (
+    <div
+      ref={ref}
+      className={[
+        'flex items-center justify-between rounded-xl px-6 py-5 transition-all duration-150',
+        focused
+          ? 'scale-[1.02] bg-white text-black ring-4 ring-sky-400'
+          : 'bg-neutral-800 text-neutral-200',
+      ].join(' ')}
+    >
+      <span className="text-xl font-medium">{label}</span>
+      {hint && (
+        <span className={focused ? 'text-neutral-500' : 'text-neutral-400'}>
+          {hint}
+        </span>
+      )}
+    </div>
+  );
+}

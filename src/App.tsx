@@ -1,32 +1,34 @@
 import { useEffect, useState } from 'react';
+import { Router, Switch, Route, Redirect, useLocation } from 'wouter';
+import { useHashLocation } from 'wouter/use-hash-location';
 import {
   FocusContext,
   setFocus,
   useFocusable,
 } from '@noriginmedia/norigin-spatial-navigation';
-import { CardRow } from './components/CardRow';
-import { FocusableCard } from './components/FocusableCard';
 import { Header } from './components/Header';
-import { Sidebar, type NavKey } from './components/Sidebar';
+import { Sidebar } from './components/Sidebar';
+import { Home } from './pages/Home';
+import { Search } from './pages/Search';
+import { Sources } from './pages/Sources';
+import { Settings } from './pages/Settings';
 import { useFullscreen } from './useFullscreen';
 
-// Each row has enough cards to overflow horizontally, and there are enough rows
-// to overflow vertically — so you can see both the container and the page scroll.
-const makeItems = (prefix: string) =>
-  Array.from({ length: 10 }, (_, i) => `${prefix} ${i + 1}`);
-
-const ROWS = [
-  { title: 'Continue Watching', items: makeItems('Recent') },
-  { title: 'Trending', items: makeItems('Trending') },
-  { title: 'New Releases', items: makeItems('New') },
-  { title: 'My List', items: makeItems('Saved') },
-  { title: 'Documentaries', items: makeItems('Doc') },
-  { title: 'Because You Watched', items: makeItems('Pick') },
-];
-
+// Hash routing (#/sources, #/settings, …) rather than history routing: the
+// production build is loaded from disk via `file://` (electron/main.ts ->
+// win.loadFile), where path-based history navigation doesn't work. Hashes work
+// in both the dev server and the packaged app.
 export function App() {
-  const [activeNav, setActiveNav] = useState<NavKey>('home');
+  return (
+    <Router hook={useHashLocation}>
+      <Shell />
+    </Router>
+  );
+}
+
+function Shell() {
   const [highlighted, setHighlighted] = useState<string | undefined>(undefined);
+  const [location] = useLocation();
   const isFullscreen = useFullscreen();
 
   // Sidebar, Header and the content area are three sibling focus groups under
@@ -35,6 +37,13 @@ export function App() {
   useEffect(() => {
     setFocus('content');
   }, []);
+
+  // The header title is driven by the highlighted card on Home; clear it when
+  // navigating away so other pages fall back to "Vids" instead of showing a
+  // stale card title.
+  useEffect(() => {
+    setHighlighted(undefined);
+  }, [location]);
 
   return (
     <div
@@ -45,7 +54,7 @@ export function App() {
         isFullscreen ? '' : 'rounded-xl',
       ].join(' ')}
     >
-      <Sidebar active={activeNav} onNavigate={setActiveNav} />
+      <Sidebar />
 
       <div className="flex min-w-0 flex-1 flex-col">
         <Header title={highlighted} />
@@ -59,9 +68,11 @@ type ContentProps = {
   onHighlight: (label: string) => void;
 };
 
-// Its own focus group so the rows bubble up to it (card -> row -> content), and
-// `saveLastFocusedChild` restores the last card when focus returns from the
-// sidebar/header. `focusKey: 'content'` lets App set the initial focus here.
+// Its own focus group so the pages bubble up to it (card -> row -> content), and
+// `saveLastFocusedChild` restores the last item when focus returns from the
+// sidebar/header. `focusKey: 'content'` lets Shell set the initial focus here.
+// The routed page renders inside this stable group, so the sidebar/header can
+// always navigate back into "content" regardless of which page is shown.
 function Content({ onHighlight }: ContentProps) {
   const { ref, focusKey } = useFocusable({
     focusKey: 'content',
@@ -71,15 +82,23 @@ function Content({ onHighlight }: ContentProps) {
   return (
     <FocusContext.Provider value={focusKey}>
       <main ref={ref} className="no-scrollbar flex-1 overflow-y-auto px-8 pb-12">
-        <div className="flex flex-col gap-10">
-          {ROWS.map((row) => (
-            <CardRow key={row.title} title={row.title}>
-              {row.items.map((item) => (
-                <FocusableCard key={item} label={item} onHighlight={onHighlight} />
-              ))}
-            </CardRow>
-          ))}
-        </div>
+        <Switch>
+          <Route path="/">
+            <Home onHighlight={onHighlight} />
+          </Route>
+          <Route path="/search">
+            <Search />
+          </Route>
+          <Route path="/sources">
+            <Sources />
+          </Route>
+          <Route path="/settings">
+            <Settings />
+          </Route>
+          <Route>
+            <Redirect to="/" />
+          </Route>
+        </Switch>
       </main>
     </FocusContext.Provider>
   );
