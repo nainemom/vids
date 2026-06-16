@@ -18,8 +18,8 @@ const NAV_ITEMS: { path: string; label: string; Icon: ComponentType<IconProps> }
   ];
 
 /** Collapsed (always-reserved) and expanded (overlay) widths. */
-export const SIDEBAR_COLLAPSED = '5rem'; // w-20
-export const SIDEBAR_EXPANDED = '15rem'; // w-60
+export const SIDEBAR_COLLAPSED = '4.5rem';
+export const SIDEBAR_EXPANDED = '15rem';
 
 type NavItemProps = {
   label: string;
@@ -36,8 +36,7 @@ function NavItem({ label, Icon, expanded, active, onSelect }: NavItemProps) {
     <div
       ref={ref}
       className={[
-        'flex h-14 items-center gap-4 rounded-xl transition-all duration-200',
-        expanded ? 'justify-start px-4' : 'justify-center px-0',
+        'flex h-14 items-center rounded-xl transition-all duration-200 justify-center px-4',
         focused
           ? 'bg-white text-black'
           : active
@@ -45,11 +44,11 @@ function NavItem({ label, Icon, expanded, active, onSelect }: NavItemProps) {
             : 'text-neutral-400',
       ].join(' ')}
     >
-      <Icon className="h-7 w-7 shrink-0" />
+      <Icon className="size-7 shrink-0" />
       <span
         className={[
-          'overflow-hidden whitespace-nowrap text-lg font-medium transition-opacity duration-200',
-          expanded ? 'opacity-100' : 'w-0 opacity-0',
+          'overflow-hidden whitespace-nowrap text-lg font-medium transition-all duration-200 shrink grow',
+          expanded ? 'ms-4' : 'w-0 opacity-0',
         ].join(' ')}
       >
         {label}
@@ -89,17 +88,17 @@ export function Sidebar() {
         <div
           style={{ width: expanded ? SIDEBAR_EXPANDED : SIDEBAR_COLLAPSED }}
           className={[
-            'absolute inset-y-0 left-0 flex flex-col gap-2 p-3',
-            'transition-[width] duration-200 ease-out',
-            expanded ? 'bg-neutral-900 shadow-2xl' : 'bg-transparent',
+            'absolute inset-y-0 left-0 flex flex-col gap-2 p-4',
+            'transition-[width] duration-300 ease-in-out',
+            expanded ? 'bg-neutral-900 shadow-2xl' : 'bg-neutral-900',
           ].join(' ')}
         >
-          <div className="mb-4 flex h-14 items-center gap-3 px-1 text-white">
-            <Film className="h-8 w-8 shrink-0 text-sky-400" />
+          <div className="mb-4 flex h-14 items-center px-1 text-white">
+            <Film className="size-8 shrink-0 text-sky-400" />
             <span
               className={[
-                'overflow-hidden whitespace-nowrap text-xl font-bold transition-opacity duration-200',
-                expanded ? 'opacity-100' : 'w-0 opacity-0',
+                'overflow-hidden whitespace-nowrap text-xl font-bold transition-all duration-200 shrink grow',
+                expanded ? 'ms-2' : 'w-0 opacity-0',
               ].join(' ')}
             >
               Vids

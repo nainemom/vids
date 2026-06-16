@@ -9,12 +9,4 @@ contextBridge.exposeInMainWorld('app', {
   readSources: () => ipcRenderer.invoke('sources:read'),
   writeSources: (sources: unknown) =>
     ipcRenderer.invoke('sources:write', sources),
-  isFullscreen: (): Promise<boolean> => ipcRenderer.invoke('app:is-fullscreen'),
-  // Subscribe to fullscreen changes; returns an unsubscribe function.
-  onFullscreenChange: (callback: (isFullscreen: boolean) => void) => {
-    const listener = (_event: IpcRendererEvent, value: boolean) =>
-      callback(value)
-    ipcRenderer.on('app:fullscreen-changed', listener)
-    return () => ipcRenderer.removeListener('app:fullscreen-changed', listener)
-  },
 })

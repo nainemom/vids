@@ -44,7 +44,7 @@ export function FocusableCard({
         'flex h-36 w-56 shrink-0 cursor-pointer select-none items-center justify-center',
         'rounded-2xl text-2xl font-medium transition-all duration-150 ease-out',
         focused
-          ? 'scale-105 bg-white text-black shadow-2xl ring-4 ring-sky-400'
+          ? 'bg-white text-black'
           : 'bg-neutral-800 text-neutral-300',
       ].join(' ')}
     >

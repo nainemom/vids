@@ -50,7 +50,7 @@ export function FocusableField({
       ref={ref}
       className={[
         'flex flex-col gap-1 rounded-xl px-4 py-3 transition-all duration-150',
-        focused ? 'bg-white ring-4 ring-sky-400' : 'bg-neutral-800',
+        focused ? 'bg-white' : 'bg-neutral-800',
       ].join(' ')}
     >
       <span

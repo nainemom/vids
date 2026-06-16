@@ -22,7 +22,7 @@ function SourceRow({ source, onRemove }: SourceRowProps) {
       className={[
         'flex items-center justify-between gap-4 rounded-xl px-6 py-5 transition-all duration-150',
         focused
-          ? 'scale-[1.02] bg-white text-black ring-4 ring-sky-400'
+          ? 'bg-white text-black'
           : 'bg-neutral-800 text-neutral-200',
       ].join(' ')}
     >
@@ -55,7 +55,7 @@ export function Sources() {
   const [adding, setAdding] = useState(false);
 
   return (
-    <div className="flex max-w-3xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <h2 className="px-1 text-lg font-semibold text-neutral-400">
         Your sources
       </h2>

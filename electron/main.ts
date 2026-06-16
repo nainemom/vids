@@ -11,14 +11,14 @@ const CONFIG_DIR = path.join(os.homedir(), '.config', 'vids')
 const SOURCES_FILE = path.join(CONFIG_DIR, 'sources.json')
 
 // No application menu — this is a 10-foot UI driven entirely by the remote.
-Menu.setApplicationMenu(null)
+// Menu.setApplicationMenu(null)
 
 app.whenReady().then(() => {
   const win = new BrowserWindow({
     title: 'Vids',
     // Frameless: no OS title bar or borders. Window controls live in the
     // in-app header (see src/components/Header.tsx -> electron/preload.ts).
-    frame: false,
+    // frame: false,
     autoHideMenuBar: true,
     // Transparent so the rounded corners (applied in CSS to the app root)
     // reveal the desktop instead of black corners. Requires a compositor.
@@ -37,12 +37,6 @@ app.whenReady().then(() => {
     // Load your file
     win.loadFile('dist/index.html')
   }
-
-  // Header buttons -> window controls
-  ipcMain.on('app:close', () => win.close())
-  ipcMain.on('app:toggle-fullscreen', () =>
-    win.setFullScreen(!win.isFullScreen()),
-  )
 
   // Read the persisted sources. Missing/invalid file -> no sources yet.
   ipcMain.handle('sources:read', async () => {

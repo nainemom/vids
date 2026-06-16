@@ -47,7 +47,7 @@ export function FocusableButton({
       className={[
         'cursor-pointer truncate rounded-xl px-5 py-3 text-center font-medium select-none transition-all duration-150',
         focused
-          ? 'scale-[1.03] bg-white text-black ring-4 ring-sky-400'
+          ? 'bg-white text-black'
           : selected
             ? 'bg-sky-500 text-white'
             : 'bg-neutral-800 text-neutral-200',

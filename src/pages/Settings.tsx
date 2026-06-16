@@ -10,7 +10,7 @@ const SETTINGS = [
 
 export function Settings() {
   return (
-    <div className="flex max-w-3xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <h2 className="px-1 text-lg font-semibold text-neutral-400">Settings</h2>
       {SETTINGS.map((s) => (
         <ListItem key={s.label} label={s.label} hint={s.hint} />

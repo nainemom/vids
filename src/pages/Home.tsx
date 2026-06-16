@@ -21,7 +21,7 @@ type HomeProps = {
 
 export function Home({ onHighlight }: HomeProps) {
   return (
-    <div className="flex flex-col gap-10">
+    <div className="flex flex-col gap-6">
       {ROWS.map((row) => (
         <CardRow key={row.title} title={row.title}>
           {row.items.map((item) => (

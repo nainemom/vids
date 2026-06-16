@@ -21,7 +21,7 @@ export function ListItem({ label, hint, onSelect }: ListItemProps) {
       className={[
         'flex items-center justify-between rounded-xl px-6 py-5 transition-all duration-150',
         focused
-          ? 'scale-[1.02] bg-white text-black ring-4 ring-sky-400'
+          ? 'bg-white text-black'
           : 'bg-neutral-800 text-neutral-200',
       ].join(' ')}
     >
