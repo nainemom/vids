@@ -5,6 +5,10 @@ import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 contextBridge.exposeInMainWorld('app', {
   close: () => ipcRenderer.send('app:close'),
   toggleFullscreen: () => ipcRenderer.send('app:toggle-fullscreen'),
+  // Persisted sources, stored as JSON under ~/.config/vids.
+  readSources: () => ipcRenderer.invoke('sources:read'),
+  writeSources: (sources: unknown) =>
+    ipcRenderer.invoke('sources:write', sources),
   isFullscreen: (): Promise<boolean> => ipcRenderer.invoke('app:is-fullscreen'),
   // Subscribe to fullscreen changes; returns an unsubscribe function.
   onFullscreenChange: (callback: (isFullscreen: boolean) => void) => {

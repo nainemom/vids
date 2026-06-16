@@ -1,8 +1,14 @@
 import { app, BrowserWindow, ipcMain, Menu } from 'electron'
 import { fileURLToPath } from 'node:url'
+import { promises as fs } from 'node:fs'
+import os from 'node:os'
 import path from 'node:path'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
+// Sources are persisted as JSON under the user's config directory.
+const CONFIG_DIR = path.join(os.homedir(), '.config', 'vids')
+const SOURCES_FILE = path.join(CONFIG_DIR, 'sources.json')
 
 // No application menu — this is a 10-foot UI driven entirely by the remote.
 Menu.setApplicationMenu(null)
@@ -37,6 +43,23 @@ app.whenReady().then(() => {
   ipcMain.on('app:toggle-fullscreen', () =>
     win.setFullScreen(!win.isFullScreen()),
   )
+
+  // Read the persisted sources. Missing/invalid file -> no sources yet.
+  ipcMain.handle('sources:read', async () => {
+    try {
+      const raw = await fs.readFile(SOURCES_FILE, 'utf-8')
+      const parsed = JSON.parse(raw)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  })
+
+  // Write the full list of sources, creating the config dir if needed.
+  ipcMain.handle('sources:write', async (_event, sources) => {
+    await fs.mkdir(CONFIG_DIR, { recursive: true })
+    await fs.writeFile(SOURCES_FILE, JSON.stringify(sources, null, 2), 'utf-8')
+  })
 
   // Fullscreen state -> renderer (used to drop rounded corners in fullscreen)
   ipcMain.handle('app:is-fullscreen', () => win.isFullScreen())
