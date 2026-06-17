@@ -13,7 +13,11 @@ type ListItemProps = {
  * app reacts consistently to the remote/arrow keys.
  */
 export function ListItem({ label, hint, onSelect }: ListItemProps) {
-  const { ref, focused } = useFocusable({ onEnterPress: () => onSelect?.() });
+  const { ref, focused } = useFocusable({
+    onEnterPress: () => onSelect?.(),
+    // Keep the focused row on-screen as the list scrolls (long video lists).
+    onFocus: ({ node }) => node?.scrollIntoView({ block: 'center', behavior: 'smooth', inline: 'center' }),
+  });
 
   return (
     <div

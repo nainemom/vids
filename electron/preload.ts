@@ -9,4 +9,6 @@ contextBridge.exposeInMainWorld('app', {
   readSources: () => ipcRenderer.invoke('sources:read'),
   writeSources: (sources: unknown) =>
     ipcRenderer.invoke('sources:write', sources),
+  // Scan a source for vids.json markers; returns its movies/series tree.
+  scanSource: (source: unknown) => ipcRenderer.invoke('library:scan', source),
 })

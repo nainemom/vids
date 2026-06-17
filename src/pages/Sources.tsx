@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
 import { Trash2 } from 'lucide-react';
+import { Header } from '../components/Header';
+import { Page } from '../components/Page';
 import { ListItem } from '../components/ListItem';
 import { AddSourceForm } from '../components/AddSourceForm';
 import { useSources, type Source } from '../useSources';
@@ -55,23 +57,22 @@ export function Sources() {
   const [adding, setAdding] = useState(false);
 
   return (
-    <div className="flex flex-col gap-4">
-      <h2 className="px-1 text-lg font-semibold text-neutral-400">
-        Your sources
-      </h2>
-      {sources.length === 0 && (
-        <p className="px-1 text-neutral-500">
-          No sources yet. Add one to get started.
-        </p>
-      )}
-      {sources.map((s) => (
-        <SourceRow key={s.id} source={s} onRemove={() => removeSource(s.id)} />
-      ))}
-      <ListItem label="+ Add source" onSelect={() => setAdding(true)} />
+    <Page header={<Header title="Sources" />}>
+      <div className="flex flex-col gap-4">
+        {sources.length === 0 && (
+          <p className="px-1 text-neutral-500">
+            No sources yet. Add one to get started.
+          </p>
+        )}
+        {sources.map((s) => (
+          <SourceRow key={s.id} source={s} onRemove={() => removeSource(s.id)} />
+        ))}
+        <ListItem label="+ Add source" onSelect={() => setAdding(true)} />
 
-      {adding && (
-        <AddSourceForm onAdd={addSource} onClose={() => setAdding(false)} />
-      )}
-    </div>
+        {adding && (
+          <AddSourceForm onAdd={addSource} onClose={() => setAdding(false)} />
+        )}
+      </div>
+    </Page>
   );
 }

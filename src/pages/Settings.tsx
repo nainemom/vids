@@ -1,3 +1,5 @@
+import { Header } from '../components/Header';
+import { Page } from '../components/Page';
 import { ListItem } from '../components/ListItem';
 
 // Placeholder content — real settings land later.
@@ -10,11 +12,12 @@ const SETTINGS = [
 
 export function Settings() {
   return (
-    <div className="flex flex-col gap-4">
-      <h2 className="px-1 text-lg font-semibold text-neutral-400">Settings</h2>
-      {SETTINGS.map((s) => (
-        <ListItem key={s.label} label={s.label} hint={s.hint} />
-      ))}
-    </div>
+    <Page header={<Header title="Settings" />}>
+      <div className="flex flex-col gap-4">
+        {SETTINGS.map((s) => (
+          <ListItem key={s.label} label={s.label} hint={s.hint} />
+        ))}
+      </div>
+    </Page>
   );
 }

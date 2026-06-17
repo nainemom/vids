@@ -1,34 +1,66 @@
+import { useLocation } from 'wouter';
 import { CardRow } from '../components/CardRow';
 import { FocusableCard } from '../components/FocusableCard';
+import { Header } from '../components/Header';
+import { Page } from '../components/Page';
+import { refreshLibrary, useEnsureLibrary, type LibraryItem } from '../library';
 
-// Each row has enough cards to overflow horizontally, and there are enough rows
-// to overflow vertically — so you can see both the container and the page scroll.
-const makeItems = (prefix: string) =>
-  Array.from({ length: 10 }, (_, i) => `${prefix} ${i + 1}`);
+// Route a card drills into: a series -> its groups, a movie -> its videos.
+const itemHref = (item: LibraryItem) =>
+  item.type === 'series' ? `/series/${item.id}` : `/movie/${item.id}`;
 
-const ROWS = [
-  { title: 'Continue Watching', items: makeItems('Recent') },
-  { title: 'Trending', items: makeItems('Trending') },
-  { title: 'New Releases', items: makeItems('New') },
-  { title: 'My List', items: makeItems('Saved') },
-  { title: 'Documentaries', items: makeItems('Doc') },
-  { title: 'Because You Watched', items: makeItems('Pick') },
-];
+export function Home() {
+  const { items, status, sources } = useEnsureLibrary();
+  const [, navigate] = useLocation();
 
-type HomeProps = {
-  onHighlight: (label: string) => void;
-};
+  console.log(items);
 
-export function Home({ onHighlight }: HomeProps) {
+  // Aggregate across all sources into a Series row and a Movies row.
+  const rows = [
+    { title: 'Series', items: items.filter((i) => i.type === 'series') },
+    { title: 'Movies', items: items.filter((i) => i.type === 'movie') },
+  ].filter((row) => row.items.length > 0);
+
   return (
-    <div className="flex flex-col gap-6">
-      {ROWS.map((row) => (
-        <CardRow key={row.title} title={row.title}>
-          {row.items.map((item) => (
-            <FocusableCard key={item} label={item} onHighlight={onHighlight} />
-          ))}
-        </CardRow>
-      ))}
-    </div>
+    <Page
+      header={
+        <Header
+          title="Library"
+          actions={[
+            {
+              key: 'refresh',
+              label: status === 'loading' ? 'Scanning…' : 'Refresh',
+              onPress: () => refreshLibrary(sources),
+            },
+          ]}
+        />
+      }
+    >
+      <div className="flex flex-col gap-6">
+        {rows.map((row) => (
+          <CardRow key={row.title} title={row.title}>
+            {row.items.map((item) => (
+              <FocusableCard
+                key={`${item.type}:${item.path}`}
+                title={item.name}
+                kind={item.type}
+                cover={item.cover}
+                onSelect={() => navigate(itemHref(item))}
+              />
+            ))}
+          </CardRow>
+        ))}
+
+        {rows.length === 0 && (
+          <p className="px-1 text-neutral-500">
+            {status === 'loading'
+              ? 'Scanning your sources…'
+              : sources.length === 0
+                ? 'No sources yet. Add one in Sources to see your library.'
+                : 'No movies or series found. Add a vids.json to a folder, then Refresh.'}
+          </p>
+        )}
+      </div>
+    </Page>
   );
 }

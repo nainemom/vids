@@ -177,5 +177,5 @@ export function useSources() {
     setSources((prev) => prev.filter((s) => s.id !== id));
   };
 
-  return { sources, addSource, removeSource };
+  return { sources, loaded, addSource, removeSource };
 }

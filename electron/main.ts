@@ -1,14 +1,38 @@
-import { app, BrowserWindow, ipcMain, Menu } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, protocol } from 'electron'
 import { fileURLToPath } from 'node:url'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { scanSource } from './scan'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // Sources are persisted as JSON under the user's config directory.
 const CONFIG_DIR = path.join(os.homedir(), '.config', 'vids')
 const SOURCES_FILE = path.join(CONFIG_DIR, 'sources.json')
+
+// Content types for the cover images we serve over the custom protocol.
+const COVER_MIME: Record<string, string> = {
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.png': 'image/png',
+  '.webp': 'image/webp',
+  '.gif': 'image/gif',
+  '.avif': 'image/avif',
+  '.bmp': 'image/bmp',
+  '.svg': 'image/svg+xml',
+}
+
+// Lets the renderer load local cover images via `vid-cover://cover/?path=<abs>`
+// from both the dev server (http) and the packaged app (file://). Must be
+// declared before `app.whenReady`. The path is produced by the scanner, which
+// has already confirmed it lives inside a source root (see electron/scan.ts).
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'vid-cover',
+    privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
+  },
+])
 
 // No application menu — this is a 10-foot UI driven entirely by the remote.
 // Menu.setApplicationMenu(null)
@@ -28,6 +52,20 @@ app.whenReady().then(() => {
       // Built alongside main.js in dist-electron (see vite.config.ts)
       preload: path.join(__dirname, 'preload.mjs'),
     },
+  })
+
+  // Serve cover images from disk for the `vid-cover` scheme. The absolute path
+  // arrives in the `path` query param (URL-encoded by the scanner).
+  protocol.handle('vid-cover', async (request) => {
+    try {
+      const filePath = new URL(request.url).searchParams.get('path')
+      if (!filePath) return new Response(null, { status: 400 })
+      const data = await fs.readFile(filePath)
+      const type = COVER_MIME[path.extname(filePath).toLowerCase()] ?? 'application/octet-stream'
+      return new Response(data, { headers: { 'content-type': type } })
+    } catch {
+      return new Response(null, { status: 404 })
+    }
   })
 
   // You can use `process.env.VITE_DEV_SERVER_URL` when the vite command is called `serve`
@@ -53,6 +91,16 @@ app.whenReady().then(() => {
   ipcMain.handle('sources:write', async (_event, sources) => {
     await fs.mkdir(CONFIG_DIR, { recursive: true })
     await fs.writeFile(SOURCES_FILE, JSON.stringify(sources, null, 2), 'utf-8')
+  })
+
+  // Scan one source for vids.json markers and return its media items. Any
+  // failure (bad path, unreadable dir) collapses to an empty result.
+  ipcMain.handle('library:scan', async (_event, source) => {
+    try {
+      return await scanSource(source)
+    } catch {
+      return []
+    }
   })
 
   // Fullscreen state -> renderer (used to drop rounded corners in fullscreen)
