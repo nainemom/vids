@@ -8,6 +8,7 @@ type FocusableCardProps = {
   kind?: 'movie' | 'series';
   /** Loadable cover image URL; falls back to a placeholder if absent or broken. */
   cover?: string;
+  poster?: string;
   /** Called when the user presses Enter / the remote's OK button while focused. */
   onSelect?: () => void;
 };
@@ -27,25 +28,25 @@ const SCROLL_OPTIONS: ScrollIntoViewOptions = {
  * as-is. The `focused` flag flips as the user navigates with the arrow keys /
  * remote D-pad; on focus we scroll the card into view.
  */
-export function FocusableCard({ title, kind, cover, onSelect }: FocusableCardProps) {
+export function FocusableCard({ title, kind, cover, poster, onSelect }: FocusableCardProps) {
   const { ref, focused } = useFocusable({
     onEnterPress: () => onSelect?.(),
     onFocus: ({ node }) => node?.scrollIntoView(SCROLL_OPTIONS),
   });
 
   const [failed, setFailed] = useState(false);
-  const showCover = Boolean(cover) && !failed;
+  const showImg = (Boolean(poster) || Boolean(cover)) && !failed;
   const Icon = kind === 'series' ? Tv : Film;
 
   return (
     <div
       ref={ref}
-      className={["flex h-48 w-56 shrink-0 cursor-pointer flex-col overflow-hidden rounded-2xl select-none transition-colors duration-150", focused ? 'bg-white text-black' : 'bg-neutral-800 text-neutral-300',].join(' ')}
+      className={["flex h-80 w-48 shrink-0 cursor-pointer flex-col overflow-hidden rounded-2xl select-none transition-colors duration-150", focused ? 'bg-white text-black' : 'bg-neutral-800 text-neutral-300',].join(' ')}
     >
       <div className={["relative flex flex-1 items-center justify-center bg-neutral-900 rounded-xl mx-1 mt-1 overflow-hidden transition-all duration-200", focused ? '' : 'grayscale-50'].join(' ')}>
-        {showCover ? (
+        {showImg ? (
           <img
-            src={cover}
+            src={poster || cover}
             alt=""
             onError={() => setFailed(true)}
             className="absolute inset-0 h-full w-full object-cover"
@@ -58,7 +59,7 @@ export function FocusableCard({ title, kind, cover, onSelect }: FocusableCardPro
       <div
         className='px-4 py-3'
       >
-        <p className="line-clamp-2 text-base leading-snug font-medium">{title}</p>
+        <p className="truncate text-base leading-snug font-medium">{title}</p>
       </div>
     </div>
   );

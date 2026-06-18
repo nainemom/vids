@@ -40,11 +40,15 @@ type VidsConfig = {
    * (e.g. "cover.jpg"). Ignored if it resolves outside the source root.
    */
   cover?: string
+  poster?: string
 }
 
 /** Custom scheme served by the main process (electron/main.ts) for local files. */
 const coverUrl = (absPath: string) =>
-  `vid-cover://cover/?path=${encodeURIComponent(absPath)}`
+  `img://cover/?path=${encodeURIComponent(absPath)}`
+
+const posterUrl = (absPath: string) =>
+  `img://poster/?path=${encodeURIComponent(absPath)}`
 
 /** One filesystem entry, normalised across providers. */
 export type FsEntry = { name: string; isDirectory: boolean }
@@ -170,6 +174,10 @@ async function buildItem(
     ? provider.resolveWithin(root, dir, config.cover)
     : null
   const cover = coverPath ? coverUrl(coverPath) : undefined
+  const posterPath = config.poster
+    ? provider.resolveWithin(root, dir, config.poster)
+    : null
+  const poster = posterPath ? posterUrl(posterPath) : undefined
 
   // Derive each video's display name (and group, for series) from its path
   // relative to the source root — the same path shape the user's regexes target.
@@ -187,6 +195,7 @@ async function buildItem(
       type: 'movie',
       name: config.name,
       cover,
+      poster,
       path: dir,
       videos: entries.map((entry) => entry.video).sort(byName),
     }
@@ -209,6 +218,7 @@ async function buildItem(
     type: 'series',
     name: config.name,
     cover,
+    poster,
     path: dir,
     groups,
   }

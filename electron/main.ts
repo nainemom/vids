@@ -92,13 +92,13 @@ const COVER_MIME: Record<string, string> = {
   '.svg': 'image/svg+xml',
 }
 
-// Lets the renderer load local cover images via `vid-cover://cover/?path=<abs>`
+// Lets the renderer load local cover images via `img://cover/?path=<abs>`
 // from both the dev server (http) and the packaged app (file://). Must be
 // declared before `app.whenReady`. The path is produced by the scanner, which
 // has already confirmed it lives inside a source root (see electron/scan.ts).
 protocol.registerSchemesAsPrivileged([
   {
-    scheme: 'vid-cover',
+    scheme: 'img',
     privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true },
   },
 ])
@@ -123,9 +123,9 @@ app.whenReady().then(() => {
     },
   })
 
-  // Serve cover images from disk for the `vid-cover` scheme. The absolute path
+  // Serve cover images from disk for the `img` scheme. The absolute path
   // arrives in the `path` query param (URL-encoded by the scanner).
-  protocol.handle('vid-cover', async (request) => {
+  protocol.handle('img', async (request) => {
     try {
       const filePath = new URL(request.url).searchParams.get('path')
       if (!filePath) return new Response(null, { status: 400 })

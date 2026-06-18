@@ -30,6 +30,7 @@ export type MovieItem = {
   name: string;
   /** Loadable URL for the title's cover image, when configured and valid. */
   cover?: string;
+  poster?: string;
   /** Absolute path of the directory that holds the vids.json. */
   path: string;
   videos: Video[];
@@ -43,6 +44,7 @@ export type SeriesItem = {
   name: string;
   /** Loadable URL for the title's cover image, when configured and valid. */
   cover?: string;
+  poster?: string,
   path: string;
   groups: Group[];
 };

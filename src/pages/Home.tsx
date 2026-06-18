@@ -45,6 +45,7 @@ export function Home() {
                 title={item.name}
                 kind={item.type}
                 cover={item.cover}
+                poster={item.poster}
                 onSelect={() => navigate(itemHref(item))}
               />
             ))}
