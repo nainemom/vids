@@ -2,17 +2,23 @@ import { useLocation, useParams } from 'wouter';
 import { DetailView } from '../components/DetailView';
 import { ListItem } from '../components/ListItem';
 import { findItemById, useEnsureLibrary } from '../library';
+import { useSources } from '../useSources';
 
-// A movie's video files (movies have no groups). Selecting a video is a no-op
-// for now (playback lands later).
+// A movie's video files (movies have no groups). Selecting a video plays it in a
+// separate fullscreen mpv window.
 export function MovieDetail() {
   const { id } = useParams();
   const [, navigate] = useLocation();
   const { items, status } = useEnsureLibrary();
+  const { sources } = useSources();
 
   const item = id ? findItemById(items, id) : undefined;
   const movie = item?.type === 'movie' ? item : undefined;
   const back = () => navigate('/');
+
+  const play = (videoPath: string) => {
+    window.app?.playVideo(videoPath, sources);
+  };
 
   if (!movie) {
     return (
@@ -27,7 +33,11 @@ export function MovieDetail() {
   return (
     <DetailView title={movie.name} onBack={back}>
       {movie.videos.map((video) => (
-        <ListItem key={video.path} label={video.name} />
+        <ListItem
+          key={video.path}
+          label={video.name}
+          onSelect={() => play(video.path)}
+        />
       ))}
     </DetailView>
   );
