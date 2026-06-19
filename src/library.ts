@@ -13,6 +13,11 @@ export type Video = {
   name: string;
   /** Absolute path to the file (provider-native; a local path today). */
   path: string;
+  /**
+   * Fast identity hash (file size + head + tail; see electron/hash.ts), used to
+   * key this file's watch progress. Absent if the file couldn't be hashed.
+   */
+  hash?: string;
 };
 
 /** A bucket of videos within a series — typically one season. */
@@ -111,6 +116,10 @@ export function useLibrary() {
 /** Find a scanned item by its stable id. */
 export const findItemById = (items: LibraryItem[], id: string) =>
   items.find((item) => item.id === id);
+
+/** Every video belonging to an item, flattened across a series' groups. */
+export const videosOf = (item: LibraryItem): Video[] =>
+  item.type === 'movie' ? item.videos : item.groups.flatMap((group) => group.videos);
 
 /**
  * Ensure the library has been scanned (once), kicking off the scan as soon as

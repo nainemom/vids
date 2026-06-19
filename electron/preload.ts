@@ -15,6 +15,17 @@ contextBridge.exposeInMainWorld('app', {
   readSettings: () => ipcRenderer.invoke('settings:read'),
   writeSettings: (settings: unknown) => ipcRenderer.invoke('settings:write', settings),
   // Play a video in a separate fullscreen mpv window (closes on focus loss).
-  playVideo: (videoPath: string, sources: unknown) =>
-    ipcRenderer.invoke('video:play', videoPath, sources),
+  // `hash` (when known) keys the watch-progress mpv records while playing.
+  playVideo: (videoPath: string, sources: unknown, hash?: string) =>
+    ipcRenderer.invoke('video:play', videoPath, sources, hash),
+  // Watch-progress map { hash: percent } persisted under ~/.config/vids.
+  readProgress: () => ipcRenderer.invoke('progress:read'),
+  // Subscribe to live progress updates (mpv writes them while playing); returns
+  // an unsubscribe function.
+  onProgressChange: (callback: (progress: Record<string, number>) => void) => {
+    const listener = (_event: unknown, progress: Record<string, number>) =>
+      callback(progress)
+    ipcRenderer.on('progress:changed', listener)
+    return () => ipcRenderer.removeListener('progress:changed', listener)
+  },
 })

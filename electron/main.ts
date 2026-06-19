@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, protocol } from 'electron'
 import { fileURLToPath } from 'node:url'
-import { promises as fs } from 'node:fs'
+import { promises as fs, watch } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
@@ -12,11 +12,17 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const CONFIG_DIR = path.join(os.homedir(), '.config', 'vids')
 const SOURCES_FILE = path.join(CONFIG_DIR, 'sources.json')
 const SETTINGS_FILE = path.join(CONFIG_DIR, 'settings.json')
+// Watch progress, keyed by each video's identity hash: { "<hash>": <percent> }.
+// mpv writes this from the progress-tracker Lua script below; the renderer reads
+// it to draw progress bars / resume badges.
+const PROGRESS_FILE = path.join(CONFIG_DIR, 'progress.json')
 
 // mpv loads this Lua script on launch (see the video:play handler). It quits mpv
-// when its window loses focus OR the user leaves fullscreen (e.g. Esc / `f`) —
-// but each only after that state has been entered once, so it can't self-close
-// before the fullscreen window has even appeared.
+// when its window loses focus OR the user leaves fullscreen (e.g. `f`), and binds
+// the back-style keys (Esc / Backspace / mouse-back) directly to quit so the same
+// buttons that go "back" in the app also close the player. The focus/fullscreen
+// guards each only fire after that state has been entered once, so mpv can't
+// self-close before its fullscreen window has even appeared.
 const QUIT_GUARD_SCRIPT = path.join(CONFIG_DIR, 'quit-guard.lua')
 const QUIT_GUARD_LUA = `local had_focus = false
 local was_fullscreen = false
@@ -34,6 +40,86 @@ mp.observe_property("fullscreen", "bool", function(_, value)
     mp.command("quit")
   end
 end)
+
+-- Back/close keys -> quit. Forced bindings override mpv's defaults (Esc would
+-- otherwise just leave fullscreen, Backspace reset the speed). These are the
+-- same keys the in-app detail pages treat as "back".
+local function quit() mp.command("quit") end
+mp.add_forced_key_binding("ESC", "vids-quit-esc", quit)
+mp.add_forced_key_binding("BS", "vids-quit-bs", quit)
+mp.add_forced_key_binding("MBTN_BACK", "vids-quit-back", quit)
+
+-- Media-key bindings, forced so playback control works regardless of the user's
+-- mpv config. Stop closes the player (same as Back). Next/Prev are intentionally
+-- left unbound. Enter toggles play/pause.
+mp.add_forced_key_binding("PLAYPAUSE", "vids-playpause", function() mp.command("cycle pause") end)
+mp.add_forced_key_binding("PLAY", "vids-play", function() mp.set_property_bool("pause", false) end)
+mp.add_forced_key_binding("PAUSE", "vids-pause", function() mp.set_property_bool("pause", true) end)
+mp.add_forced_key_binding("STOP", "vids-stop", quit)
+mp.add_forced_key_binding("FORWARD", "vids-forward", function() mp.command("seek 10") end)
+mp.add_forced_key_binding("REWIND", "vids-rewind", function() mp.command("seek -10") end)
+mp.add_forced_key_binding("ENTER", "vids-enter-playpause", function() mp.command("cycle pause") end)
+mp.add_forced_key_binding("KP_ENTER", "vids-kpenter-playpause", function() mp.command("cycle pause") end)
+`
+
+// mpv also loads this script when a video is played with a known identity hash
+// (see the video:play handler). mpv runs detached with no IPC, so this is how the
+// app learns how far playback reached: the script periodically merges the current
+// `percent-pos` into progress.json, keyed by the hash passed via --script-opts
+// (vids_hash / vids_progress). It writes on a timer, on pause, and on shutdown so
+// the last position survives the window closing.
+const PROGRESS_SCRIPT = path.join(CONFIG_DIR, 'progress-tracker.lua')
+const PROGRESS_LUA = `local utils = require "mp.utils"
+
+local sopts = mp.get_property_native("script-opts") or {}
+local hash = sopts.vids_hash
+local progress_file = sopts.vids_progress
+
+-- Nothing to record without an identity hash or a destination file.
+if not hash or hash == "" or not progress_file or progress_file == "" then
+  return
+end
+
+-- mpv clears percent-pos by the time end-file/shutdown fire (and the app quits
+-- mpv on focus loss, which goes straight to shutdown), so we can't read it at
+-- teardown. Instead track the latest observed value and persist *that*.
+local last_percent = nil
+mp.observe_property("percent-pos", "number", function(_, value)
+  if value ~= nil then last_percent = value end
+end)
+
+local function save()
+  if last_percent == nil then return end
+
+  -- Read-modify-write the shared map so other titles' progress is preserved.
+  local data = {}
+  local f = io.open(progress_file, "r")
+  if f then
+    local content = f:read("*a")
+    f:close()
+    if content and content ~= "" then
+      local parsed = utils.parse_json(content)
+      if type(parsed) == "table" then data = parsed end
+    end
+  end
+
+  data[hash] = last_percent
+
+  local out = io.open(progress_file, "w")
+  if out then
+    out:write(utils.format_json(data))
+    out:close()
+  end
+end
+
+-- Persist periodically while playing, and again whenever playback stops (pause,
+-- file end, or the window closing) so the last position is never lost.
+mp.add_periodic_timer(5, save)
+mp.observe_property("pause", "bool", function(_, paused)
+  if paused then save() end
+end)
+mp.register_event("end-file", save)
+mp.register_event("shutdown", save)
 `
 
 // Playback settings, with their defaults. `subtitleColor` is a UI token mapped
@@ -56,6 +142,17 @@ async function readSettings() {
     return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) }
   } catch {
     return DEFAULT_SETTINGS
+  }
+}
+
+/** Read the watch-progress map ({ hash: percent }); {} if missing/invalid. */
+async function readProgress(): Promise<Record<string, number>> {
+  try {
+    const raw = await fs.readFile(PROGRESS_FILE, 'utf-8')
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' ? parsed : {}
+  } catch {
+    return {}
   }
 }
 
@@ -181,10 +278,32 @@ app.whenReady().then(() => {
     await fs.writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf-8')
   })
 
+  // Read the current watch-progress map.
+  ipcMain.handle('progress:read', () => readProgress())
+
+  // Push live progress updates to the renderer. mpv (running detached) rewrites
+  // progress.json as playback advances; watching the config dir lets the open UI
+  // move its progress bars without a manual refresh. fs.watch can fire several
+  // times per write, so the read is debounced. The watcher lives for the app's
+  // lifetime, so it's never closed.
+  fs.mkdir(CONFIG_DIR, { recursive: true })
+    .then(() => {
+      let timer: ReturnType<typeof setTimeout> | null = null
+      watch(CONFIG_DIR, (_event, filename) => {
+        if (filename !== 'progress.json') return
+        if (timer) clearTimeout(timer)
+        timer = setTimeout(async () => {
+          if (!win.isDestroyed()) win.webContents.send('progress:changed', await readProgress())
+        }, 150)
+      })
+    })
+    .catch(() => {})
+
   // Play a video in a separate, fullscreen mpv window. mpv runs on its own (no
-  // IPC/controls); the bundled Lua script quits mpv as soon as its window loses
-  // focus or leaves fullscreen, so switching away (or pressing Esc/`f`) closes it.
-  ipcMain.handle('video:play', async (_event, videoPath: string, sources) => {
+  // IPC/controls); the bundled Lua scripts quit mpv as soon as its window loses
+  // focus or leaves fullscreen, and (when a `hash` is given) record watch
+  // progress to progress.json as playback advances.
+  ipcMain.handle('video:play', async (_event, videoPath: string, sources, hash?: string) => {
     const settings = await readSettings()
     await fs.mkdir(CONFIG_DIR, { recursive: true })
     await fs.writeFile(QUIT_GUARD_SCRIPT, QUIT_GUARD_LUA, 'utf-8')
@@ -195,8 +314,27 @@ app.whenReady().then(() => {
       `--script=${QUIT_GUARD_SCRIPT}`,
       `--sub-font-size=${settings.subtitleSize}`,
       `--sub-color=${SUB_COLORS[settings.subtitleColor] ?? SUB_COLORS.white}`,
-      resolvePlayPath(videoPath, sources),
     ]
+
+    // Only track progress when we have a stable id for this file. The hash and
+    // the destination file are passed to the tracker via --script-opts.
+    if (hash) {
+      await fs.writeFile(PROGRESS_SCRIPT, PROGRESS_LUA, 'utf-8')
+      args.push(
+        `--script=${PROGRESS_SCRIPT}`,
+        `--script-opts=vids_hash=${hash},vids_progress=${PROGRESS_FILE}`,
+      )
+
+      // Auto-resume: if this file was left partway through (the same 1–95% band
+      // the UI calls "in progress"), start mpv there. Outside that band — barely
+      // started or basically finished — start from the beginning.
+      const saved = (await readProgress())[hash]
+      if (typeof saved === 'number' && saved >= 1 && saved < 95) {
+        args.push(`--start=${saved}%`)
+      }
+    }
+
+    args.push(resolvePlayPath(videoPath, sources))
 
     // Detached + unref so the IPC call returns immediately and mpv runs on its
     // own; ignore spawn errors (e.g. mpv not installed) rather than crash.

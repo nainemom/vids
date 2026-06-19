@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Film, Tv } from 'lucide-react';
+import { Film, Tv, History } from 'lucide-react';
 import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
 
 type FocusableCardProps = {
@@ -9,6 +9,8 @@ type FocusableCardProps = {
   /** Loadable cover image URL; falls back to a placeholder if absent or broken. */
   cover?: string;
   poster?: string;
+  /** Shows a "continue watching" badge on the cover when the title has a partly-watched video. */
+  inProgress?: boolean;
   /** Called when the user presses Enter / the remote's OK button while focused. */
   onSelect?: () => void;
 };
@@ -28,7 +30,7 @@ const SCROLL_OPTIONS: ScrollIntoViewOptions = {
  * as-is. The `focused` flag flips as the user navigates with the arrow keys /
  * remote D-pad; on focus we scroll the card into view.
  */
-export function FocusableCard({ title, kind, cover, poster, onSelect }: FocusableCardProps) {
+export function FocusableCard({ title, kind, cover, poster, inProgress, onSelect }: FocusableCardProps) {
   const { ref, focused } = useFocusable({
     onEnterPress: () => onSelect?.(),
     onFocus: ({ node }) => node?.scrollIntoView(SCROLL_OPTIONS),
@@ -53,6 +55,13 @@ export function FocusableCard({ title, kind, cover, poster, onSelect }: Focusabl
           />
         ) : (
           <Icon className="h-10 w-10 text-neutral-700" />
+        )}
+
+        {/* "Continue watching" badge: this title has a partly-watched video. */}
+        {inProgress && (
+          <div className="absolute top-2 right-2 rounded-full bg-sky-500 p-1.5 text-white shadow-md">
+            <History className="h-4 w-4" />
+          </div>
         )}
       </div>
 

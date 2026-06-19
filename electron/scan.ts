@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { hashVideoFile } from './hash'
 import type { Source } from '../src/useSources'
 import type { Group, LibraryItem, Video } from '../src/library'
 
@@ -75,6 +76,13 @@ export interface FsProvider {
    * within `root`; otherwise null (used to drop covers that escape the source).
    */
   resolveWithin(root: string, dir: string, rel: string): string | null
+  /**
+   * Fast identity hash of a video file (file size + head + tail), used to key
+   * its watch progress. Returns undefined when the file can't be hashed. A
+   * future SshProvider implements this over SFTP with the same chunked reads, so
+   * remote files stay just as cheap to identify (see electron/hash.ts).
+   */
+  hash(file: string): Promise<string | undefined>
 }
 
 /** Local-disk implementation of FsProvider. */
@@ -104,6 +112,32 @@ class LocalProvider implements FsProvider {
     }
     return abs
   }
+  hash(file: string): Promise<string | undefined> {
+    return hashVideoFile(file)
+  }
+}
+
+/**
+ * Hash many files concurrently (bounded, so a large library doesn't open every
+ * file at once) into a `path -> hash` map. Files that fail to hash are simply
+ * absent from the map.
+ */
+async function hashVideos(
+  provider: FsProvider,
+  files: string[],
+): Promise<Map<string, string>> {
+  const hashes = new Map<string, string>()
+  let next = 0
+  const worker = async () => {
+    while (next < files.length) {
+      const file = files[next++]
+      const hash = await provider.hash(file)
+      if (hash) hashes.set(file, hash)
+    }
+  }
+  const workers = Array.from({ length: Math.min(8, files.length) }, worker)
+  await Promise.all(workers)
+  return hashes
 }
 
 const isVideo = (name: string) =>
@@ -166,6 +200,7 @@ async function buildItem(
   const groupRe = compile(config.group)
   const videoRe = compile(config.video)
   const files = await collectVideos(provider, dir)
+  const hashes = await hashVideos(provider, files)
 
   // Cover: resolved relative to this item's directory; dropped if it escapes
   // the source root. A missing file still yields a URL — the card falls back
@@ -185,7 +220,7 @@ async function buildItem(
     const rel = provider.relPath(root, full)
     const name = (videoRe ? rel.match(videoRe)?.[1] : undefined) ?? baseName(full)
     const group = groupRe ? rel.match(groupRe)?.[1] : undefined
-    const video: Video = { name, path: full }
+    const video: Video = { name, path: full, hash: hashes.get(full) }
     return { group, video }
   })
 

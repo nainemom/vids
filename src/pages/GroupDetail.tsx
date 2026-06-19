@@ -1,7 +1,8 @@
 import { useLocation, useParams } from 'wouter';
 import { DetailView } from '../components/DetailView';
 import { ListItem } from '../components/ListItem';
-import { findItemById, useEnsureLibrary } from '../library';
+import { findItemById, useEnsureLibrary, type Video } from '../library';
+import { progressFor, useProgress } from '../progress';
 import { useSources } from '../useSources';
 
 // The videos within one group (season) of a series. Selecting a video plays it
@@ -11,6 +12,7 @@ export function GroupDetail() {
   const [, navigate] = useLocation();
   const { items, status } = useEnsureLibrary();
   const { sources } = useSources();
+  const progress = useProgress();
 
   const item = id ? findItemById(items, id) : undefined;
   const series = item?.type === 'series' ? item : undefined;
@@ -19,8 +21,8 @@ export function GroupDetail() {
     series && Number.isInteger(index) ? series.groups[index] : undefined;
   const back = () => navigate(id ? `/series/${id}` : '/');
 
-  const play = (videoPath: string) => {
-    window.app?.playVideo(videoPath, sources);
+  const play = (video: Video) => {
+    window.app?.playVideo(video.path, sources, video.hash);
   };
 
   if (!series || !group) {
@@ -39,7 +41,8 @@ export function GroupDetail() {
         <ListItem
           key={video.path}
           label={video.name}
-          onSelect={() => play(video.path)}
+          progress={progressFor(progress, video.hash)}
+          onSelect={() => play(video)}
         />
       ))}
     </DetailView>

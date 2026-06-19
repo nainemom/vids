@@ -1,7 +1,8 @@
 import { useLocation, useParams } from 'wouter';
 import { DetailView } from '../components/DetailView';
 import { ListItem } from '../components/ListItem';
-import { findItemById, useEnsureLibrary } from '../library';
+import { findItemById, useEnsureLibrary, type Video } from '../library';
+import { progressFor, useProgress } from '../progress';
 import { useSources } from '../useSources';
 
 // A movie's video files (movies have no groups). Selecting a video plays it in a
@@ -11,13 +12,14 @@ export function MovieDetail() {
   const [, navigate] = useLocation();
   const { items, status } = useEnsureLibrary();
   const { sources } = useSources();
+  const progress = useProgress();
 
   const item = id ? findItemById(items, id) : undefined;
   const movie = item?.type === 'movie' ? item : undefined;
   const back = () => navigate('/');
 
-  const play = (videoPath: string) => {
-    window.app?.playVideo(videoPath, sources);
+  const play = (video: Video) => {
+    window.app?.playVideo(video.path, sources, video.hash);
   };
 
   if (!movie) {
@@ -36,7 +38,8 @@ export function MovieDetail() {
         <ListItem
           key={video.path}
           label={video.name}
-          onSelect={() => play(video.path)}
+          progress={progressFor(progress, video.hash)}
+          onSelect={() => play(video)}
         />
       ))}
     </DetailView>

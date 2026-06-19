@@ -3,7 +3,8 @@ import { CardRow } from '../components/CardRow';
 import { FocusableCard } from '../components/FocusableCard';
 import { Header } from '../components/Header';
 import { Page } from '../components/Page';
-import { refreshLibrary, useEnsureLibrary, type LibraryItem } from '../library';
+import { refreshLibrary, useEnsureLibrary, videosOf, type LibraryItem } from '../library';
+import { isInProgress, progressFor, useProgress } from '../progress';
 
 // Route a card drills into: a series -> its groups, a movie -> its videos.
 const itemHref = (item: LibraryItem) =>
@@ -12,8 +13,12 @@ const itemHref = (item: LibraryItem) =>
 export function Home() {
   const { items, status, sources } = useEnsureLibrary();
   const [, navigate] = useLocation();
+  const progress = useProgress();
 
-  console.log(items);
+  // A title shows the "continue watching" badge if any of its videos is in the
+  // partly-watched band.
+  const hasInProgress = (item: LibraryItem) =>
+    videosOf(item).some((video) => isInProgress(progressFor(progress, video.hash)));
 
   // Aggregate across all sources into a Series row and a Movies row.
   const rows = [
@@ -46,6 +51,7 @@ export function Home() {
                 kind={item.type}
                 cover={item.cover}
                 poster={item.poster}
+                inProgress={hasInProgress(item)}
                 onSelect={() => navigate(itemHref(item))}
               />
             ))}
