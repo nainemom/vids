@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
 
 // Keep the focused button visible inside a scrolling dialog body. `nearest`
@@ -12,6 +13,8 @@ export type FocusableButtonProps = {
   label: string;
   onPress: () => void;
   focusKey?: string;
+  /** Optional leading icon (e.g. an arrow on Back, a check on OK). */
+  icon?: ReactNode;
   /** Highlight as the chosen option (e.g. the active type chip). */
   selected?: boolean;
   disabled?: boolean;
@@ -25,6 +28,7 @@ export function FocusableButton({
   label,
   onPress,
   focusKey,
+  icon,
   selected,
   disabled,
 }: FocusableButtonProps) {
@@ -45,7 +49,7 @@ export function FocusableButton({
       ref={ref}
       onClick={press}
       className={[
-        'cursor-pointer truncate rounded-xl px-5 py-3 text-center font-medium select-none transition-all duration-150',
+        'flex cursor-pointer items-center justify-center gap-2 rounded-xl px-5 py-3 font-medium select-none transition-all duration-150',
         focused
           ? 'bg-white text-black'
           : selected
@@ -54,7 +58,8 @@ export function FocusableButton({
         disabled ? 'opacity-40' : '',
       ].join(' ')}
     >
-      {label}
+      {icon}
+      <span className="truncate">{label}</span>
     </div>
   );
 }

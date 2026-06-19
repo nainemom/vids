@@ -1,4 +1,5 @@
 import { useLocation } from 'wouter';
+import { RefreshCw } from 'lucide-react';
 import { CardRow } from '../components/CardRow';
 import { FocusableCard } from '../components/FocusableCard';
 import { Header } from '../components/Header';
@@ -35,6 +36,11 @@ export function Home() {
             {
               key: 'refresh',
               label: status === 'loading' ? 'Scanning…' : 'Refresh',
+              icon: (
+                <RefreshCw
+                  className={`h-5 w-5 ${status === 'loading' ? 'animate-spin' : ''}`}
+                />
+              ),
               onPress: () => refreshLibrary(sources),
             },
           ]}

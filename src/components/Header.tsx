@@ -10,6 +10,8 @@ export type HeaderAction = {
   /** Stable key for React + spatial-navigation. */
   key: string;
   label: string;
+  /** Optional leading icon, shown before the label. */
+  icon?: ReactNode;
   onPress: () => void;
 };
 
@@ -66,7 +68,7 @@ export function Header({ title, subtitle, back, actions }: HeaderProps) {
     <FocusContext.Provider value={focusKey}>
       <header
         ref={ref}
-        className="flex shrink-0 items-center gap-4 py-4 pr-6 pl-4"
+        className="flex shrink-0 items-center gap-4 p-4"
       >
         {back && (
           <HeaderButton onPress={back}>
@@ -75,7 +77,7 @@ export function Header({ title, subtitle, back, actions }: HeaderProps) {
           </HeaderButton>
         )}
         <div className="min-w-0 flex-1">
-          <h1 className="truncate text-3xl font-bold text-white">
+          <h1 className="truncate text-2xl font-bold text-white">
             {title ?? 'Vids'}
           </h1>
           {subtitle && (
@@ -84,6 +86,7 @@ export function Header({ title, subtitle, back, actions }: HeaderProps) {
         </div>
         {actions?.map((action) => (
           <HeaderButton key={action.key} onPress={action.onPress}>
+            {action.icon}
             {action.label}
           </HeaderButton>
         ))}

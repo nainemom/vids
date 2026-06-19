@@ -1,13 +1,22 @@
 import { useEffect, useState } from 'react';
+import { ArrowLeft, Check } from 'lucide-react';
+import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Header } from '../components/Header';
 import { Page } from '../components/Page';
 import { ListItem } from '../components/ListItem';
-import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
+import { Dialog, type DialogAction } from '../components/Dialog';
+import { FocusableButton } from '../components/FocusableButton';
 
 type Settings = {
   subtitleSize: number;
   subtitleColor: 'white' | 'yellow';
 };
+
+const SIZES = [30, 40, 50, 60, 70, 80];
+const COLORS: Array<'white' | 'yellow'> = ['white', 'yellow'];
+
+const titleCase = (value: string) =>
+  value.charAt(0).toUpperCase() + value.slice(1);
 
 export function Settings() {
   const [settings, setSettings] = useState<Settings>({
@@ -28,170 +37,101 @@ export function Settings() {
     await window.app?.writeSettings(newSettings);
   };
 
-  const handleSubtitleSizeSelect = () => {
-    setShowSubtitleSizeDialog(true);
-  };
-
-  const handleSubtitleColorSelect = () => {
-    setShowSubtitleColorDialog(true);
-  };
-
-  const setSizeOption = async (size: number) => {
-    await saveSettings({ ...settings, subtitleSize: size });
-    setShowSubtitleSizeDialog(false);
-  };
-
-  const setColorOption = async (color: 'white' | 'yellow') => {
-    await saveSettings({ ...settings, subtitleColor: color });
-    setShowSubtitleColorDialog(false);
-  };
-
   return (
     <Page header={<Header title="Settings" />}>
       <div className="flex flex-col gap-4">
         <ListItem
           label="Subtitle size"
           hint={`${settings.subtitleSize}`}
-          onSelect={handleSubtitleSizeSelect}
+          onSelect={() => setShowSubtitleSizeDialog(true)}
         />
         <ListItem
           label="Subtitle color"
-          hint={settings.subtitleColor}
-          onSelect={handleSubtitleColorSelect}
+          hint={titleCase(settings.subtitleColor)}
+          onSelect={() => setShowSubtitleColorDialog(true)}
         />
       </div>
 
       {showSubtitleSizeDialog && (
-        <SubtitleSizeDialog
-          currentSize={settings.subtitleSize}
-          onSelect={setSizeOption}
+        <OptionDialog
+          title="Subtitle size"
+          options={SIZES}
+          current={settings.subtitleSize}
+          format={(size) => `${size}`}
+          onSave={(size) => {
+            saveSettings({ ...settings, subtitleSize: size });
+            setShowSubtitleSizeDialog(false);
+          }}
+          onClose={() => setShowSubtitleSizeDialog(false)}
         />
       )}
 
       {showSubtitleColorDialog && (
-        <SubtitleColorDialog
-          currentColor={settings.subtitleColor}
-          onSelect={setColorOption}
+        <OptionDialog
+          title="Subtitle color"
+          options={COLORS}
+          current={settings.subtitleColor}
+          format={titleCase}
+          onSave={(color) => {
+            saveSettings({ ...settings, subtitleColor: color });
+            setShowSubtitleColorDialog(false);
+          }}
+          onClose={() => setShowSubtitleColorDialog(false)}
         />
       )}
     </Page>
   );
 }
 
-function SubtitleSizeDialog({
-  currentSize,
-  onSelect,
+/**
+ * A single-choice picker on top of the shared Dialog, so focus is trapped while
+ * it's open and it carries Back/OK actions like the add-source flow. Choosing an
+ * option only marks it pending (highlighted); OK commits it, Back discards. The
+ * current value is focused on open so the remote starts where the setting is.
+ */
+function OptionDialog<T extends string | number>({
+  title,
+  options,
+  current,
+  format,
+  onSave,
+  onClose,
 }: {
-  currentSize: number;
-  onSelect: (size: number) => void;
+  title: string;
+  options: T[];
+  current: T;
+  format: (option: T) => string;
+  onSave: (option: T) => void;
+  onClose: () => void;
 }) {
-  const sizes = [30, 40, 50, 60, 70, 80];
+  const [pending, setPending] = useState<T>(current);
+
+  useEffect(() => {
+    setFocus(`option-${current}`);
+  }, [current]);
+
+  const actions: DialogAction[] = [
+    { label: 'Back', icon: <ArrowLeft className="h-5 w-5" />, onPress: onClose },
+    {
+      label: 'OK',
+      icon: <Check className="h-5 w-5" />,
+      onPress: () => onSave(pending),
+    },
+  ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-      <div className="rounded-2xl bg-neutral-900 p-8">
-        <h2 className="mb-6 text-2xl font-bold text-white">Subtitle Size</h2>
-        <div className="flex flex-col gap-3">
-          {sizes.map((size) => (
-            <SizeOption
-              key={size}
-              size={size}
-              selected={size === currentSize}
-              onSelect={() => onSelect(size)}
-            />
-          ))}
-        </div>
+    <Dialog title={title} onClose={onClose} actions={actions}>
+      <div className="flex flex-col gap-3">
+        {options.map((option) => (
+          <FocusableButton
+            key={option}
+            focusKey={`option-${option}`}
+            label={format(option)}
+            selected={option === pending}
+            onPress={() => setPending(option)}
+          />
+        ))}
       </div>
-    </div>
-  );
-}
-
-function SizeOption({
-  size,
-  selected,
-  onSelect,
-}: {
-  size: number;
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  const { ref, focused } = useFocusable({
-    onEnterPress: onSelect,
-  });
-
-  return (
-    <div
-      ref={ref}
-      onClick={onSelect}
-      className={[
-        'rounded-lg px-4 py-3 cursor-pointer transition-all duration-150',
-        selected
-          ? 'bg-blue-600 text-white'
-          : focused
-            ? 'bg-white text-black'
-            : 'bg-neutral-800 text-neutral-200',
-      ].join(' ')}
-    >
-      {size}
-    </div>
-  );
-}
-
-function SubtitleColorDialog({
-  currentColor,
-  onSelect,
-}: {
-  currentColor: 'white' | 'yellow';
-  onSelect: (color: 'white' | 'yellow') => void;
-}) {
-  const colors: Array<'white' | 'yellow'> = ['white', 'yellow'];
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-      <div className="rounded-2xl bg-neutral-900 p-8">
-        <h2 className="mb-6 text-2xl font-bold text-white">Subtitle Color</h2>
-        <div className="flex flex-col gap-3">
-          {colors.map((color) => (
-            <ColorOption
-              key={color}
-              color={color}
-              selected={color === currentColor}
-              onSelect={() => onSelect(color)}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ColorOption({
-  color,
-  selected,
-  onSelect,
-}: {
-  color: 'white' | 'yellow';
-  selected: boolean;
-  onSelect: () => void;
-}) {
-  const { ref, focused } = useFocusable({
-    onEnterPress: onSelect,
-  });
-
-  return (
-    <div
-      ref={ref}
-      onClick={onSelect}
-      className={[
-        'rounded-lg px-4 py-3 cursor-pointer transition-all duration-150',
-        selected
-          ? 'bg-blue-600 text-white'
-          : focused
-            ? 'bg-white text-black'
-            : 'bg-neutral-800 text-neutral-200',
-      ].join(' ')}
-    >
-      {color.charAt(0).toUpperCase() + color.slice(1)}
-    </div>
+    </Dialog>
   );
 }

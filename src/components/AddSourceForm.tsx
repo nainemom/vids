@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ArrowLeft, Check, X } from 'lucide-react';
 import { setFocus } from '@noriginmedia/norigin-spatial-navigation';
 import { Dialog, type DialogAction } from './Dialog';
 import { FocusableButton } from './FocusableButton';
@@ -57,14 +58,19 @@ export function AddSourceForm({ onAdd, onClose }: AddSourceFormProps) {
   const typeLabel = SOURCE_TYPES.find((t) => t.type === type)?.label ?? '';
   const actions: DialogAction[] = type
     ? [
-        { label: 'Back', onPress: () => setType(null) },
+        {
+          label: 'Back',
+          icon: <ArrowLeft className="h-5 w-5" />,
+          onPress: () => setType(null),
+        },
         {
           label: 'Add',
+          icon: <Check className="h-5 w-5" />,
           disabled: !canSubmit,
           onPress: submit,
         },
       ]
-    : [{ label: 'Cancel', onPress: onClose }];
+    : [{ label: 'Cancel', icon: <X className="h-5 w-5" />, onPress: onClose }];
 
   return (
     <Dialog

@@ -8,3 +8,16 @@ init({
   debug: false,
   visualDebug: false,
 });
+
+// Focus is driven entirely by the arrow keys (via the engine above). The
+// browser's native Tab traversal moves DOM focus on its own, which would
+// desync the visible focus ring from where the engine thinks focus is — so
+// swallow Tab / Shift+Tab everywhere. Capture phase runs before the browser
+// acts on the key.
+window.addEventListener(
+  'keydown',
+  (e) => {
+    if (e.key === 'Tab') e.preventDefault();
+  },
+  true,
+);
