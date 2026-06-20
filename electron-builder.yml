@@ -1,0 +1,42 @@
+appId: io.nainemom.vids
+productName: Vids
+copyright: Copyright © Amir Momenian
+files:
+  - dist/**
+  - dist-electron/**
+  - package.json
+directories:
+  buildResources: build
+  output: release
+linux:
+  icon: build/icon.png
+  category: AudioVideo
+  synopsis: A 10-foot media library and player
+  syncDesktopName: true
+  description: >-
+    Vids is a remote-driven media library that browses local and SSH sources
+    and plays titles in mpv.
+  desktop:
+    entry:
+      Categories: AudioVideo;Video;Player;
+      Keywords: video;movies;series;media;player;mpv;
+  target:
+    - deb
+    - rpm
+    - AppImage
+
+deb:
+  depends:
+    - mpv
+    - libgtk-3-0
+    - libnotify4
+    - libnss3
+    - libxss1
+    - libxtst6
+    - xdg-utils
+    - libatspi2.0-0
+    - libuuid1
+    - libsecret-1-0
+
+appImage:
+  artifactName: ${productName}-${version}-${arch}.${ext}
