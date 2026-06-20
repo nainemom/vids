@@ -18,6 +18,12 @@ type SourceRowProps = {
 function SourceRow({ source, onRemove }: SourceRowProps) {
   const { ref, focused } = useFocusable({ onEnterPress: onRemove });
 
+  // SSH sources show where they point (user@host:path); local sources the path.
+  const subtitle =
+    source.type === 'ssh'
+      ? `${source.user}@${source.host}:${source.path}`
+      : source.path;
+
   return (
     <div
       ref={ref}
@@ -36,7 +42,7 @@ function SourceRow({ source, onRemove }: SourceRowProps) {
             focused ? 'text-neutral-500' : 'text-neutral-400',
           ].join(' ')}
         >
-          {source.path}
+          {subtitle}
         </span>
       </div>
       <span

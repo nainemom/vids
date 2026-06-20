@@ -49,13 +49,15 @@ export function FocusableButton({
       ref={ref}
       onClick={press}
       className={[
-        'flex cursor-pointer items-center justify-center gap-2 rounded-xl px-5 py-3 font-medium select-none transition-all duration-150',
+        'flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-medium select-none transition-all duration-150',
+        // Disabled buttons must not look pressable — otherwise a click reads as
+        // a dead no-op ("clicks but does nothing") instead of "not ready yet".
+        disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer',
         focused
           ? 'bg-white text-black'
           : selected
             ? 'bg-sky-500 text-white'
             : 'bg-neutral-800 text-neutral-200',
-        disabled ? 'opacity-40' : '',
       ].join(' ')}
     >
       {icon}

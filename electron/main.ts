@@ -5,6 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import { spawn } from 'node:child_process'
 import { scanSource } from './scan'
+import { ensureMounted, mountpointFor, openTerminalSsh, testConnection, unmountAll } from './ssh'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -145,6 +146,17 @@ async function readSettings() {
   }
 }
 
+/** Read the persisted sources; [] if the file is missing/invalid. */
+async function readSources(): Promise<unknown[]> {
+  try {
+    const raw = await fs.readFile(SOURCES_FILE, 'utf-8')
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
 /** Read the watch-progress map ({ hash: percent }); {} if missing/invalid. */
 async function readProgress(): Promise<Record<string, number>> {
   try {
@@ -157,21 +169,20 @@ async function readProgress(): Promise<Record<string, number>> {
 }
 
 /**
- * Resolve a scanned video path into something mpv can open. Local paths are used
- * as-is; a path that lives under an SSH source is wrapped as an `sftp://` URL so
- * mpv streams it over SFTP.
+ * Resolve a scanned video path into something mpv can open. Every path is a real
+ * local path — SSH sources are sshfs mounts (see electron/ssh.ts). When the path
+ * lives under an SSH source's mountpoint we make sure that mount is live first
+ * (it may need re-establishing after a restart) and then hand mpv the local path.
  */
-function resolvePlayPath(videoPath: string, sources: unknown): string {
+async function resolvePlayPath(videoPath: string, sources: unknown): Promise<string> {
   const list = Array.isArray(sources) ? sources : []
   for (const s of list) {
-    if (
-      s?.type === 'ssh' &&
-      typeof s.path === 'string' &&
-      videoPath.startsWith(s.path)
-    ) {
-      const port = s.port || 22
-      const auth = s.password ? `${s.user}:${s.password}` : s.user
-      return `sftp://${auth}@${s.host}:${port}${videoPath}`
+    if (s?.type === 'ssh') {
+      const mountpoint = mountpointFor(s)
+      if (videoPath === mountpoint || videoPath.startsWith(mountpoint + path.sep)) {
+        await ensureMounted(s).catch(() => {})
+        break
+      }
     }
   }
   return videoPath
@@ -203,6 +214,13 @@ protocol.registerSchemesAsPrivileged([
 // No application menu — this is a 10-foot UI driven entirely by the remote.
 // Menu.setApplicationMenu(null)
 
+// Tear down any sshfs mounts when the app exits (best-effort). Mounts are keyed
+// by connection target and reused across runs, so this isn't required for
+// correctness — it just avoids leaving live SSH mounts behind after quitting.
+app.on('will-quit', () => {
+  void unmountAll()
+})
+
 app.whenReady().then(() => {
   const win = new BrowserWindow({
     title: 'Vids',
@@ -220,14 +238,17 @@ app.whenReady().then(() => {
     },
   })
 
-  // Serve cover images from disk for the `img` scheme. The absolute path
-  // arrives in the `path` query param (URL-encoded by the scanner).
+  // Serve cover/poster images for the `img` scheme. The absolute path arrives in
+  // the `path` query param (URL-encoded by the scanner) and is read from disk —
+  // SSH covers live under an sshfs mountpoint, so they're local files too.
   protocol.handle('img', async (request) => {
     try {
-      const filePath = new URL(request.url).searchParams.get('path')
+      const params = new URL(request.url).searchParams
+      const filePath = params.get('path')
       if (!filePath) return new Response(null, { status: 400 })
-      const data = await fs.readFile(filePath)
+
       const type = COVER_MIME[path.extname(filePath).toLowerCase()] ?? 'application/octet-stream'
+      const data = await fs.readFile(filePath)
       return new Response(data, { headers: { 'content-type': type } })
     } catch {
       return new Response(null, { status: 404 })
@@ -243,15 +264,7 @@ app.whenReady().then(() => {
   }
 
   // Read the persisted sources. Missing/invalid file -> no sources yet.
-  ipcMain.handle('sources:read', async () => {
-    try {
-      const raw = await fs.readFile(SOURCES_FILE, 'utf-8')
-      const parsed = JSON.parse(raw)
-      return Array.isArray(parsed) ? parsed : []
-    } catch {
-      return []
-    }
-  })
+  ipcMain.handle('sources:read', () => readSources())
 
   // Write the full list of sources, creating the config dir if needed.
   ipcMain.handle('sources:write', async (_event, sources) => {
@@ -266,6 +279,26 @@ app.whenReady().then(() => {
       return await scanSource(source)
     } catch {
       return []
+    }
+  })
+
+  // Probe an SSH source and classify the result (connected / untrusted / auth /
+  // network / path / changed host key) so the add-source form can react.
+  ipcMain.handle('ssh:test', async (_event, source) => {
+    try {
+      return await testConnection(source)
+    } catch (err) {
+      return { ok: false, reason: 'unknown', message: String((err as Error)?.message ?? err) }
+    }
+  })
+
+  // Open a terminal running native `ssh` to the host so the user can trust it on
+  // first connect (the yes/no prompt that writes known_hosts) and log in.
+  ipcMain.handle('ssh:open-terminal', async (_event, source) => {
+    try {
+      return await openTerminalSsh(source)
+    } catch (err) {
+      return { ok: false, message: String((err as Error)?.message ?? err) }
     }
   })
 
@@ -334,7 +367,7 @@ app.whenReady().then(() => {
       }
     }
 
-    args.push(resolvePlayPath(videoPath, sources))
+    args.push(await resolvePlayPath(videoPath, sources))
 
     // Detached + unref so the IPC call returns immediately and mpv runs on its
     // own; ignore spawn errors (e.g. mpv not installed) rather than crash.

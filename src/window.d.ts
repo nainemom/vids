@@ -1,4 +1,4 @@
-import type { Source } from './useSources'
+import type { Source, SshSource, SshTestResult } from './useSources'
 import type { LibraryItem } from './library'
 
 /** Persisted playback settings (applied to mpv on launch). */
@@ -20,6 +20,14 @@ export interface AppBridge {
   writeSources: (sources: Source[]) => Promise<void>
   /** Scans a source for vids.json markers and returns its media items. */
   scanSource: (source: Source) => Promise<LibraryItem[]>
+  /** Probes an SSH source and classifies the result for the add-source form. */
+  testSshSource: (source: SshSource) => Promise<SshTestResult>
+  /**
+   * Opens a terminal running native `ssh` to the host so the user can trust it
+   * on first connect (writing known_hosts) and log in. Resolves with which
+   * terminal launched, or an error message if none could be found.
+   */
+  openSshTerminal: (source: SshSource) => Promise<{ ok: boolean; message?: string }>
   /** Reads playback settings from ~/.config/vids/settings.json. */
   readSettings: () => Promise<PlaybackSettings>
   /** Writes playback settings to ~/.config/vids/settings.json. */

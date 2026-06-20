@@ -42,6 +42,28 @@ export type SshSource = SourceBase & {
  */
 export type Source = LocalSource | SshSource;
 
+/** Why an SSH connection test failed (drives the message / next action in the UI). */
+export type SshTestReason =
+  | 'untrusted'
+  | 'auth'
+  | 'hostkey-changed'
+  | 'network'
+  | 'path'
+  | 'no-sshfs'
+  | 'unknown';
+
+/**
+ * Outcome of probing an SSH source (see electron/ssh.ts). `message` is ready to
+ * show; on failure, `reason` lets the form decide whether to offer "Connect in
+ * terminal" (untrusted / auth / changed host key need a native first connection).
+ */
+export type SshTestResult =
+  | { ok: true; message: string }
+  | { ok: false; reason: SshTestReason; message: string };
+
+/** Reasons whose fix is a native first connection in a terminal. */
+export const TRUST_REASONS: SshTestReason[] = ['untrusted', 'auth', 'hostkey-changed'];
+
 // --- Add-source form schema -------------------------------------------------
 // The form is generated from these descriptors so it stays generic: to support
 // a new source type, add its `Source` union member above, list it in
@@ -67,7 +89,7 @@ export const SOURCE_TYPES: {
   disabled?: boolean;
 }[] = [
   { type: 'local', label: 'Local' },
-  { type: 'ssh', label: 'SSH', disabled: true },
+  { type: 'ssh', label: 'SSH' },
 ];
 
 /** The type-specific fields collected after a type is chosen (`name` is shared). */

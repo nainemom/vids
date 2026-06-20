@@ -3,6 +3,7 @@ import { promises as fs } from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { hashVideoFile } from './hash'
+import { ensureMounted } from './ssh'
 import type { Source } from '../src/useSources'
 import type { Group, LibraryItem, Video } from '../src/library'
 
@@ -44,21 +45,24 @@ type VidsConfig = {
   poster?: string
 }
 
-/** Custom scheme served by the main process (electron/main.ts) for local files. */
-const coverUrl = (absPath: string) =>
-  `img://cover/?path=${encodeURIComponent(absPath)}`
+/** Cover vs poster image — only affects the URL path (cosmetic / cache key). */
+export type ImageKind = 'cover' | 'poster'
 
-const posterUrl = (absPath: string) =>
-  `img://poster/?path=${encodeURIComponent(absPath)}`
+// The `img://` scheme is served by the main process (see electron/main.ts) and
+// carries the absolute path to the image. SSH covers/posters live under an sshfs
+// mountpoint, so they're ordinary local paths too — no special handling.
+const localImageUrl = (kind: ImageKind, absPath: string) =>
+  `img://${kind}/?path=${encodeURIComponent(absPath)}`
 
 /** One filesystem entry, normalised across providers. */
 export type FsEntry = { name: string; isDirectory: boolean }
 
 /**
- * Abstracts the filesystem so the scan algorithm is written once and reused for
- * every source type. `LocalProvider` backs `local` sources today; a future
- * `SshProvider` (over sftp) implements these same methods and the scanner works
- * unchanged. Paths passed around are provider-native absolute paths; `relPath`
+ * Abstracts the filesystem so the scan algorithm is written once. `LocalProvider`
+ * backs both `local` sources and `ssh` sources — the latter are mounted with
+ * sshfs first (see scanSource / electron/ssh.ts), so by the time we scan they're
+ * an ordinary local directory tree. The interface is kept as a seam for any
+ * future non-filesystem backend. Paths passed around are absolute; `relPath`
  * turns one into the forward-slash path relative to the source root that the
  * group/video regexes match against (e.g. "/Sherlock/Season 1/a.mkv").
  */
@@ -78,11 +82,13 @@ export interface FsProvider {
   resolveWithin(root: string, dir: string, rel: string): string | null
   /**
    * Fast identity hash of a video file (file size + head + tail), used to key
-   * its watch progress. Returns undefined when the file can't be hashed. A
-   * future SshProvider implements this over SFTP with the same chunked reads, so
-   * remote files stay just as cheap to identify (see electron/hash.ts).
+   * its watch progress. Returns undefined when the file can't be hashed. For an
+   * sshfs-mounted source this reads the chunks over the mount (see
+   * electron/hash.ts), so a file hashes the same locally or remotely.
    */
   hash(file: string): Promise<string | undefined>
+  /** The renderer-loadable `img://` URL for an image at `absPath` under this source. */
+  imageUrl(kind: ImageKind, absPath: string): string
 }
 
 /** Local-disk implementation of FsProvider. */
@@ -115,7 +121,11 @@ class LocalProvider implements FsProvider {
   hash(file: string): Promise<string | undefined> {
     return hashVideoFile(file)
   }
+  imageUrl(kind: ImageKind, absPath: string): string {
+    return localImageUrl(kind, absPath)
+  }
 }
+
 
 /**
  * Hash many files concurrently (bounded, so a large library doesn't open every
@@ -208,11 +218,11 @@ async function buildItem(
   const coverPath = config.cover
     ? provider.resolveWithin(root, dir, config.cover)
     : null
-  const cover = coverPath ? coverUrl(coverPath) : undefined
+  const cover = coverPath ? provider.imageUrl('cover', coverPath) : undefined
   const posterPath = config.poster
     ? provider.resolveWithin(root, dir, config.poster)
     : null
-  const poster = posterPath ? posterUrl(posterPath) : undefined
+  const poster = posterPath ? provider.imageUrl('poster', posterPath) : undefined
 
   // Derive each video's display name (and group, for series) from its path
   // relative to the source root — the same path shape the user's regexes target.
@@ -310,9 +320,15 @@ export async function scanSource(source: Source): Promise<LibraryItem[]> {
   switch (source.type) {
     case 'local':
       return scanProvider(new LocalProvider(), expandTilde(source.path))
-    case 'ssh':
-      // Not wired up yet: add an SshProvider and scan it here.
-      return []
+    case 'ssh': {
+      // Mount the remote folder with sshfs, then scan it as a local directory.
+      // The mount is left in place so playback and cover images can read through
+      // it (torn down on app quit). A connection/auth/trust failure throws here
+      // and surfaces as an empty result (the UI shows the real reason via the
+      // Test-connection flow).
+      const mountpoint = await ensureMounted(source)
+      return scanProvider(new LocalProvider(), mountpoint)
+    }
     default:
       return []
   }

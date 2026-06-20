@@ -11,6 +11,12 @@ contextBridge.exposeInMainWorld('app', {
     ipcRenderer.invoke('sources:write', sources),
   // Scan a source for vids.json markers; returns its movies/series tree.
   scanSource: (source: unknown) => ipcRenderer.invoke('library:scan', source),
+  // Probe an SSH source; returns a classified result (connected / untrusted /
+  // auth / network / path / changed host key) for the add-source form.
+  testSshSource: (source: unknown) => ipcRenderer.invoke('ssh:test', source),
+  // Open a terminal with native `ssh` so the user can trust the host on first
+  // connect and log in interactively.
+  openSshTerminal: (source: unknown) => ipcRenderer.invoke('ssh:open-terminal', source),
   // Read/write playback settings (subtitle size/colour).
   readSettings: () => ipcRenderer.invoke('settings:read'),
   writeSettings: (settings: unknown) => ipcRenderer.invoke('settings:write', settings),
