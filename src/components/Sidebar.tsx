@@ -4,7 +4,7 @@ import {
   FocusContext,
   useFocusable,
 } from '@noriginmedia/norigin-spatial-navigation';
-import { Home, Search, FolderOpen, Settings, Film } from 'lucide-react';
+import { Home, FolderOpen, Settings, Film } from 'lucide-react';
 
 type IconProps = { className?: string };
 
@@ -12,7 +12,6 @@ type IconProps = { className?: string };
 const NAV_ITEMS: { path: string; label: string; Icon: ComponentType<IconProps> }[] =
   [
     { path: '/', label: 'Home', Icon: Home },
-    { path: '/search', label: 'Search', Icon: Search },
     { path: '/sources', label: 'Source', Icon: FolderOpen },
     { path: '/settings', label: 'Settings', Icon: Settings },
   ];
@@ -20,6 +19,14 @@ const NAV_ITEMS: { path: string; label: string; Icon: ComponentType<IconProps> }
 /** Collapsed (always-reserved) and expanded (overlay) widths. */
 export const SIDEBAR_COLLAPSED = '4.5rem';
 export const SIDEBAR_EXPANDED = '15rem';
+
+/**
+ * Stable focus key for the nav rail. The focus guard (see App.tsx) targets it as
+ * the universal fallback — the sidebar is the one focus group that's always
+ * mounted with focusable children, so it can keep a highlight alive even when the
+ * current page body has nothing to focus yet (empty/loading library).
+ */
+export const SIDEBAR_KEY = 'sidebar';
 
 type NavItemProps = {
   label: string;
@@ -71,6 +78,7 @@ function NavItem({ label, Icon, expanded, active, onSelect }: NavItemProps) {
  */
 export function Sidebar() {
   const { ref, focusKey, hasFocusedChild } = useFocusable({
+    focusKey: SIDEBAR_KEY,
     trackChildren: true,
     saveLastFocusedChild: true,
   });

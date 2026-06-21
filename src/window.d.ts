@@ -1,10 +1,12 @@
 import type { Source, SshSource, SshTestResult } from './useSources'
 import type { LibraryItem } from './library'
 
-/** Persisted playback settings (applied to mpv on launch). */
+/** Persisted app settings (subtitles applied to mpv; startup window mode). */
 export type PlaybackSettings = {
   subtitleSize: number
   subtitleColor: 'white' | 'yellow'
+  /** Open the main window fullscreen (true) or windowed (false) on launch. */
+  startFullscreen: boolean
 }
 
 /** Watch progress, keyed by a video's identity hash -> percent watched (0-100). */

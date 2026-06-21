@@ -9,6 +9,16 @@ body,
   background: transparent;
 }
 
+/* Frameless window: the OS title bar is gone (electron/main.ts -> frame:false),
+   so the header bar doubles as the drag handle that moves the window. Interactive
+   controls inside it opt back out, otherwise the drag region eats their clicks. */
+.app-drag {
+  -webkit-app-region: drag;
+}
+.app-no-drag {
+  -webkit-app-region: no-drag;
+}
+
 /* Hide scrollbars — a TV has no pointer, navigation is via the remote, and
    scroll position is driven by focus (scrollIntoView), not by a scrollbar. */
 .no-scrollbar {

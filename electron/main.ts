@@ -123,11 +123,13 @@ mp.register_event("end-file", save)
 mp.register_event("shutdown", save)
 `
 
-// Playback settings, with their defaults. `subtitleColor` is a UI token mapped
-// to a concrete mpv color in SUB_COLORS.
+// App settings, with their defaults. `subtitleColor` is a UI token mapped to a
+// concrete mpv color in SUB_COLORS. `startFullscreen` controls whether the main
+// window opens fullscreen or windowed (applied at window creation below).
 const DEFAULT_SETTINGS = {
   subtitleSize: 50,
   subtitleColor: 'white' as 'white' | 'yellow',
+  startFullscreen: false,
 }
 
 // UI colour token -> mpv `--sub-color` value.
@@ -221,13 +223,19 @@ app.on('will-quit', () => {
   void unmountAll()
 })
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  // Read settings up front so the window can open in the user's chosen start
+  // mode (fullscreen vs windowed) without a visible windowed -> fullscreen flash.
+  const settings = await readSettings()
+
   const win = new BrowserWindow({
     title: 'Vids',
     // Frameless: no OS title bar or borders. Window controls live in the
     // in-app header (see src/components/Header.tsx -> electron/preload.ts).
-    // frame: false,
+    frame: false,
     autoHideMenuBar: true,
+    // Open fullscreen or windowed per the persisted setting (Settings page).
+    fullscreen: settings.startFullscreen,
     // Transparent so the rounded corners (applied in CSS to the app root)
     // reveal the desktop instead of black corners. Requires a compositor.
     transparent: true,
@@ -375,6 +383,11 @@ app.whenReady().then(() => {
     child.on('error', (err: Error) => console.error('Failed to launch mpv:', err))
     child.unref()
   })
+
+  // Frameless window controls. The header's buttons fire these (preload uses
+  // ipcRenderer.send, so they're plain listeners, not invoke handlers).
+  ipcMain.on('app:close', () => win.close())
+  ipcMain.on('app:toggle-fullscreen', () => win.setFullScreen(!win.isFullScreen()))
 
   // Fullscreen state -> renderer (used to drop rounded corners in fullscreen)
   ipcMain.handle('app:is-fullscreen', () => win.isFullScreen())

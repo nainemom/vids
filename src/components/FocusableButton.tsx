@@ -10,7 +10,7 @@ const SCROLL_OPTIONS: ScrollIntoViewOptions = {
 };
 
 export type FocusableButtonProps = {
-  label: string;
+  label?: string;
   onPress: () => void;
   focusKey?: string;
   /** Optional leading icon (e.g. an arrow on Back, a check on OK). */
@@ -49,7 +49,8 @@ export function FocusableButton({
       ref={ref}
       onClick={press}
       className={[
-        'flex items-center justify-center gap-2 rounded-xl px-5 py-3 font-medium select-none transition-all duration-150',
+        'flex items-center justify-center gap-2 rounded-xl h-11 font-medium select-none transition-all duration-150',
+        label ? 'px-4' : 'w-11',
         // Disabled buttons must not look pressable — otherwise a click reads as
         // a dead no-op ("clicks but does nothing") instead of "not ready yet".
         disabled ? 'cursor-not-allowed opacity-40' : 'cursor-pointer',
@@ -61,7 +62,7 @@ export function FocusableButton({
       ].join(' ')}
     >
       {icon}
-      <span className="truncate">{label}</span>
+      {label && <span className="truncate">{label}</span>}
     </div>
   );
 }

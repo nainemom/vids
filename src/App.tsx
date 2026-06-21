@@ -6,7 +6,9 @@ import {
   getCurrentFocusKey,
   setFocus,
 } from '@noriginmedia/norigin-spatial-navigation';
-import { Sidebar } from './components/Sidebar';
+import { Sidebar, SIDEBAR_KEY } from './components/Sidebar';
+import { PAGE_BODY_KEY } from './components/Page';
+import { useFullscreen } from './useFullscreen';
 import { Home } from './pages/Home';
 import { Search } from './pages/Search';
 import { Sources } from './pages/Sources';
@@ -28,20 +30,32 @@ export function App() {
 }
 
 // Guarantees something is always highlighted. The engine can end up with no
-// focused component — on first paint before the initial focus lands, or when the
-// focused element unmounts and its parent can't auto-restore (e.g. a card whose
-// whole row was removed). `setFocus()` with no key resolves to the `forceFocus`
-// container (the current page's body — see Page.tsx), drilling down to a real
-// leaf. We re-assert it immediately and then poll as a cheap safety net, but
-// only when focus is truly gone — a valid focus (a card, a nav item, a dialog
-// field) is left untouched, so this never steals focus from the sidebar, header,
-// or an open dialog.
+// *visible* focus in a few ways: on first paint before the initial focus lands;
+// when the focused element unmounts and its parent can't auto-restore (e.g. a
+// card whose whole row was removed); or — the common one at startup — when the
+// page body has no focusable children yet (the library scan is async, so Home is
+// empty on first paint), leaving focus parked on the invisible body container
+// itself. `setFocus('')` resolves to the `forceFocus` container (the current
+// page's body — see Page.tsx), drilling down to a real leaf when one exists. If
+// the body still has nothing focusable, we fall back to the sidebar — the one
+// group that's always mounted with focusable items — so a highlight is always
+// shown. A valid focus (a card, a nav item, a dialog field) is left untouched,
+// so this never steals focus from the sidebar, header, or an open dialog.
 function useFocusGuard() {
   useEffect(() => {
     const ensureFocus = () => {
       const key = getCurrentFocusKey();
-      // An empty key routes to the forceFocus container (the page body).
-      if (!key || !doesFocusableExist(key)) setFocus('');
+      // Focus on the body container itself is not a real, visible focus — treat
+      // it like "no focus" so we keep trying to drill into the body's children
+      // (which appear once the library finishes loading).
+      const hasVisibleFocus =
+        key && key !== PAGE_BODY_KEY && doesFocusableExist(key);
+      if (hasVisibleFocus) return;
+
+      setFocus(''); // forceFocus container (page body) -> first focusable leaf
+      const next = getCurrentFocusKey();
+      // Nothing focusable in the body yet — land on the nav so something shows.
+      if (!next || next === PAGE_BODY_KEY) setFocus(SIDEBAR_KEY);
     };
     ensureFocus();
     const id = window.setInterval(ensureFocus, 250);
@@ -54,11 +68,16 @@ function Shell() {
   // within each page (see Page.tsx) — the Header bar (↑) above the scrolling
   // body. The guard keeps a highlight alive across navigation.
   useFocusGuard();
+  // Rounded corners when windowed; squared off in fullscreen (where rounding
+  // would just expose desktop slivers at the screen corners). The Electron
+  // window is transparent, so the corners reveal the desktop behind the app.
+  const isFullscreen = useFullscreen();
 
   return (
     <div
       className={[
         'flex h-screen overflow-hidden bg-neutral-950 text-white',
+        isFullscreen ? '' : 'rounded-2xl',
       ].join(' ')}
     >
       <Sidebar />

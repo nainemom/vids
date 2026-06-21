@@ -6,8 +6,10 @@ import {
 } from '@noriginmedia/norigin-spatial-navigation';
 
 // Only one Page is mounted at a time (routes are exclusive), so a constant focus
-// key is safe.
-const BODY_KEY = 'page-body';
+// key is safe. Exported so the focus guard (App.tsx) can recognise when focus is
+// stuck on the (invisible) body container itself — which happens when the body
+// had no focusable children at mount and they only appear once the library loads.
+export const PAGE_BODY_KEY = 'page-body';
 
 type PageProps = {
   /** The page's top bar — pass a <Header .../>. Stays put while the body scrolls. */
@@ -26,13 +28,13 @@ type PageProps = {
  */
 export function Page({ header, children }: PageProps) {
   const { ref, focusKey } = useFocusable({
-    focusKey: BODY_KEY,
+    focusKey: PAGE_BODY_KEY,
     saveLastFocusedChild: true,
     forceFocus: true,
   });
 
   useEffect(() => {
-    setFocus(BODY_KEY);
+    setFocus(PAGE_BODY_KEY);
   }, []);
 
   return (

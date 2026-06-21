@@ -8,7 +8,7 @@ import {
 import { FocusableButton } from './FocusableButton';
 
 export type DialogAction = {
-  label: string;
+  label?: string;
   onPress: () => void;
   /** Optional leading icon (e.g. an arrow on Back, a check on OK). */
   icon?: ReactNode;

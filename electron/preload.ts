@@ -34,4 +34,14 @@ contextBridge.exposeInMainWorld('app', {
     ipcRenderer.on('progress:changed', listener)
     return () => ipcRenderer.removeListener('progress:changed', listener)
   },
+  // Current fullscreen state of the window.
+  isFullscreen: () => ipcRenderer.invoke('app:is-fullscreen'),
+  // Subscribe to fullscreen changes (header toggle, OS shortcut); returns an
+  // unsubscribe function. Drives the in-app rounded corners.
+  onFullscreenChange: (callback: (isFullscreen: boolean) => void) => {
+    const listener = (_event: unknown, isFullscreen: boolean) =>
+      callback(isFullscreen)
+    ipcRenderer.on('app:fullscreen-changed', listener)
+    return () => ipcRenderer.removeListener('app:fullscreen-changed', listener)
+  },
 })

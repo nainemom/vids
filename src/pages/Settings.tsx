@@ -10,6 +10,7 @@ import { FocusableButton } from '../components/FocusableButton';
 type Settings = {
   subtitleSize: number;
   subtitleColor: 'white' | 'yellow';
+  startFullscreen: boolean;
 };
 
 const SIZES = [30, 40, 50, 60, 70, 80];
@@ -22,6 +23,7 @@ export function Settings() {
   const [settings, setSettings] = useState<Settings>({
     subtitleSize: 50,
     subtitleColor: 'white',
+    startFullscreen: false,
   });
   const [showSubtitleSizeDialog, setShowSubtitleSizeDialog] = useState(false);
   const [showSubtitleColorDialog, setShowSubtitleColorDialog] = useState(false);
@@ -49,6 +51,16 @@ export function Settings() {
           label="Subtitle color"
           hint={titleCase(settings.subtitleColor)}
           onSelect={() => setShowSubtitleColorDialog(true)}
+        />
+        <ListItem
+          label="Startup mode"
+          hint={settings.startFullscreen ? 'Fullscreen' : 'Normal'}
+          onSelect={() =>
+            saveSettings({
+              ...settings,
+              startFullscreen: !settings.startFullscreen,
+            })
+          }
         />
       </div>
 
