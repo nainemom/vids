@@ -3,6 +3,7 @@ import { DetailView } from '../components/DetailView';
 import { ListItem } from '../components/ListItem';
 import { findItemById, useEnsureLibrary, type Video } from '../library';
 import { progressFor, useProgress } from '../progress';
+import { useHighlightTarget } from '../highlight';
 import { useSources } from '../useSources';
 
 // The videos within one group (season) of a series. Selecting a video plays it
@@ -13,6 +14,8 @@ export function GroupDetail() {
   const { items, status } = useEnsureLibrary();
   const { sources } = useSources();
   const progress = useProgress();
+  // Set when opened from "Continue watching": focus the resume video on mount.
+  const highlight = useHighlightTarget();
 
   const item = id ? findItemById(items, id) : undefined;
   const series = item?.type === 'series' ? item : undefined;
@@ -42,6 +45,7 @@ export function GroupDetail() {
           key={video.path}
           label={video.name}
           progress={progressFor(progress, video.hash)}
+          autoFocus={!!video.hash && video.hash === highlight}
           onSelect={() => play(video)}
         />
       ))}

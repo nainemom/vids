@@ -64,3 +64,17 @@ export const progressFor = (
   map: ProgressMap,
   hash: string | undefined,
 ): number | undefined => (hash ? map[hash] : undefined);
+
+/**
+ * Recency rank of each hash by its position in the progress map — higher means
+ * more recently watched. The map is written newest-last (mpv re-appends the
+ * just-watched hash; see electron/main.ts) and JSON.parse preserves that key
+ * order, so insertion order *is* play order. Used to sort "Continue watching".
+ */
+export const recencyIndex = (map: ProgressMap): Record<string, number> => {
+  const order: Record<string, number> = {};
+  Object.keys(map).forEach((hash, i) => {
+    order[hash] = i;
+  });
+  return order;
+};

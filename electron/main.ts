@@ -69,10 +69,15 @@ mp.add_forced_key_binding("KP_ENTER", "vids-kpenter-playpause", function() mp.co
 // `percent-pos` into progress.json, keyed by the hash passed via --script-opts
 // (vids_hash / vids_progress). It writes on a timer, on pause, and on shutdown so
 // the last position survives the window closing.
+//
+// Key order carries meaning: the just-watched hash is always re-appended last, so
+// the file reads oldest-first / newest-last. The renderer relies on that order to
+// sort the "Continue watching" row (JSON.parse preserves it; these hex keys are
+// never array indices). We therefore can't round-trip through Lua tables (their
+// iteration order is undefined) — the writer reconstructs the file textually,
+// preserving each untouched entry's order and verbatim value.
 const PROGRESS_SCRIPT = path.join(CONFIG_DIR, 'progress-tracker.lua')
-const PROGRESS_LUA = `local utils = require "mp.utils"
-
-local sopts = mp.get_property_native("script-opts") or {}
+const PROGRESS_LUA = `local sopts = mp.get_property_native("script-opts") or {}
 local hash = sopts.vids_hash
 local progress_file = sopts.vids_progress
 
@@ -92,23 +97,34 @@ end)
 local function save()
   if last_percent == nil then return end
 
-  -- Read-modify-write the shared map so other titles' progress is preserved.
-  local data = {}
+  -- Read every existing entry in its current file order, dropping our own hash
+  -- (we re-append it last). We scan the text rather than parsing into a Lua
+  -- table because table iteration order is undefined, and we must preserve the
+  -- oldest-first/newest-last order the renderer sorts "Continue watching" by.
+  -- Values are kept verbatim; only quoted hex keys can precede a ':' here.
+  local ordered = {}
   local f = io.open(progress_file, "r")
   if f then
     local content = f:read("*a")
     f:close()
-    if content and content ~= "" then
-      local parsed = utils.parse_json(content)
-      if type(parsed) == "table" then data = parsed end
+    if content then
+      for k, v in content:gmatch('"(%x+)"%s*:%s*([^,}%s]+)') do
+        if k ~= hash then ordered[#ordered + 1] = { key = k, value = v } end
+      end
     end
   end
 
-  data[hash] = last_percent
+  -- Newest-watched goes last so the renderer reads recency straight off the keys.
+  ordered[#ordered + 1] = { key = hash, value = string.format("%.4f", last_percent) }
+
+  local parts = {}
+  for i, entry in ipairs(ordered) do
+    parts[i] = string.format('"%s":%s', entry.key, entry.value)
+  end
 
   local out = io.open(progress_file, "w")
   if out then
-    out:write(utils.format_json(data))
+    out:write("{" .. table.concat(parts, ",") .. "}")
     out:close()
   end
 end

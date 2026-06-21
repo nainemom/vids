@@ -1,5 +1,6 @@
+import { useEffect } from 'react';
 import { History } from 'lucide-react';
-import { useFocusable } from '@noriginmedia/norigin-spatial-navigation';
+import { setFocus, useFocusable } from '@noriginmedia/norigin-spatial-navigation';
 
 type ListItemProps = {
   label: string;
@@ -16,6 +17,11 @@ type ListItemProps = {
    * (seasons) that contain a partly-watched video.
    */
   inProgress?: boolean;
+  /**
+   * Take focus on mount — used to land on the resume target when a detail page
+   * is opened from "Continue watching".
+   */
+  autoFocus?: boolean;
   onSelect?: () => void;
 };
 
@@ -24,12 +30,22 @@ type ListItemProps = {
  * Settings, Search) and the video lists. Same focus styling language as
  * FocusableCard so the whole app reacts consistently to the remote/arrow keys.
  */
-export function ListItem({ label, hint, progress, inProgress, onSelect }: ListItemProps) {
-  const { ref, focused } = useFocusable({
+export function ListItem({ label, hint, progress, inProgress, autoFocus, onSelect }: ListItemProps) {
+  const { ref, focused, focusKey } = useFocusable({
     onEnterPress: () => onSelect?.(),
     // Keep the focused row on-screen as the list scrolls (long video lists).
     onFocus: ({ node }) => node?.scrollIntoView({ block: 'center', behavior: 'smooth', inline: 'center' }),
   });
+
+  // Claim focus once we're the resume target. Deferred a tick so it lands after
+  // Page's mount effect parks focus on the body's first child (child effects run
+  // before the parent's) — otherwise that would override us. onFocus then scrolls
+  // this row into view.
+  useEffect(() => {
+    if (!autoFocus) return;
+    const id = setTimeout(() => setFocus(focusKey), 0);
+    return () => clearTimeout(id);
+  }, [autoFocus, focusKey]);
 
   // Clamp into [0, 100]; treat anything below 1% as "not started" (no bar).
   const pct =

@@ -3,6 +3,7 @@ import { DetailView } from '../components/DetailView';
 import { ListItem } from '../components/ListItem';
 import { findItemById, useEnsureLibrary, type Video } from '../library';
 import { progressFor, useProgress } from '../progress';
+import { useHighlightTarget } from '../highlight';
 import { useSources } from '../useSources';
 
 // A movie's video files (movies have no groups). Selecting a video plays it in a
@@ -13,6 +14,8 @@ export function MovieDetail() {
   const { items, status } = useEnsureLibrary();
   const { sources } = useSources();
   const progress = useProgress();
+  // Set when opened from "Continue watching": focus the resume video on mount.
+  const highlight = useHighlightTarget();
 
   const item = id ? findItemById(items, id) : undefined;
   const movie = item?.type === 'movie' ? item : undefined;
@@ -39,6 +42,7 @@ export function MovieDetail() {
           key={video.path}
           label={video.name}
           progress={progressFor(progress, video.hash)}
+          autoFocus={!!video.hash && video.hash === highlight}
           onSelect={() => play(video)}
         />
       ))}
