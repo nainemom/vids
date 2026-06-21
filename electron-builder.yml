@@ -22,7 +22,6 @@ linux:
       Keywords: video;movies;series;media;player;mpv;
   target:
     - deb
-    - rpm
     - AppImage
 
 deb:
