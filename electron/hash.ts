@@ -10,6 +10,42 @@ import { open, stat } from 'node:fs/promises'
 // players use for fast file matching.
 const CHUNK = 64 * 1024
 
+/** A handle whose read fills `buf[off..off+len)` from `pos`, reporting bytesRead. */
+type ReadableHandle = {
+  read: (
+    buf: Buffer,
+    off: number,
+    len: number,
+    pos: number,
+  ) => Promise<{ bytesRead: number }>
+}
+
+/**
+ * Read exactly `length` bytes at `position` into a fresh buffer, looping over
+ * short reads. A single `read()` is NOT guaranteed to return the whole range —
+ * on a local disk it usually does, but FUSE/sshfs (and any network filesystem)
+ * routinely hands back fewer bytes per call. The old code read once into an
+ * `allocUnsafe` buffer and hashed the *whole* buffer regardless of how much was
+ * actually read, so a short read folded uninitialised memory into the digest —
+ * giving an unstable hash over sshfs (the same file hashing differently between
+ * scans, so saved watch-progress stopped matching). We zero-fill, loop until the
+ * range is filled (or EOF), and hash only the bytes we really read.
+ */
+async function readChunk(
+  handle: ReadableHandle,
+  length: number,
+  position: number,
+): Promise<Buffer> {
+  const buf = Buffer.alloc(length)
+  let got = 0
+  while (got < length) {
+    const { bytesRead } = await handle.read(buf, got, length - got, position + got)
+    if (bytesRead <= 0) break // EOF or no more data available
+    got += bytesRead
+  }
+  return got === length ? buf : buf.subarray(0, got)
+}
+
 /**
  * Compute the partial-MD5 identity hash of a video file, given an opened handle
  * and its size. Split out so providers that already have an open handle (e.g. a
@@ -17,7 +53,7 @@ const CHUNK = 64 * 1024
  * remote hashes identical for the same bytes.
  */
 export async function hashFromHandle(
-  handle: { read: (buf: Buffer, off: number, len: number, pos: number) => Promise<unknown> },
+  handle: ReadableHandle,
   size: number,
 ): Promise<string> {
   const md5 = createHash('md5')
@@ -27,18 +63,14 @@ export async function hashFromHandle(
 
   const headLen = Math.min(CHUNK, size)
   if (headLen > 0) {
-    const head = Buffer.allocUnsafe(headLen)
-    await handle.read(head, 0, headLen, 0)
-    md5.update(head)
+    md5.update(await readChunk(handle, headLen, 0))
   }
 
   // Only read a distinct tail when the file is larger than one chunk; otherwise
   // the head already covered the whole file.
   if (size > CHUNK) {
     const tailLen = Math.min(CHUNK, size - headLen)
-    const tail = Buffer.allocUnsafe(tailLen)
-    await handle.read(tail, 0, tailLen, size - tailLen)
-    md5.update(tail)
+    md5.update(await readChunk(handle, tailLen, size - tailLen))
   }
 
   return md5.digest('hex')
