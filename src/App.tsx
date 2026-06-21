@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { Router, Switch, Route, Redirect } from 'wouter';
+import { useEffect, useRef } from 'react';
+import { Router, Switch, Route, Redirect, useLocation } from 'wouter';
 import { useHashLocation } from 'wouter/use-hash-location';
 import {
   doesFocusableExist,
@@ -8,6 +8,7 @@ import {
 } from '@noriginmedia/norigin-spatial-navigation';
 import { Sidebar, SIDEBAR_KEY } from './components/Sidebar';
 import { PAGE_BODY_KEY } from './components/Page';
+import { handleBack } from './backstack';
 import { useFullscreen } from './useFullscreen';
 import { Home } from './pages/Home';
 import { Search } from './pages/Search';
@@ -63,11 +64,98 @@ function useFocusGuard() {
   }, []);
 }
 
+// Where "Back" goes from a given route — mirrors each page's own Back button so
+// the remote's Back key (and Escape/Backspace) behaves identically everywhere:
+//   group (season) -> its series, series/movie/other top-level page -> Home,
+//   Home -> nowhere (null). Pure so it's trivial to reason about.
+function parentRoute(location: string): string | null {
+  const group = location.match(/^\/series\/([^/]+)\/[^/]+$/);
+  if (group) return `/series/${group[1]}`;
+  return location === '/' ? null : '/';
+}
+
+// Whether the event targets a text field, so editing keys (Backspace, Home)
+// keep their normal meaning there instead of triggering navigation.
+function isEditableTarget(e: KeyboardEvent): boolean {
+  const el = (e.target as HTMLElement | null) ?? (document.activeElement as HTMLElement | null);
+  if (!el) return false;
+  return el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable;
+}
+
+/**
+ * Global handling for the remote's Back and Home buttons (and their keyboard
+ * equivalents) — the arrow keys and OK/Play are handled by the spatial-nav
+ * engine (see spatial.ts), but Back/Home aren't keys it knows about. We listen
+ * in the capture phase, across every page, and cover the various codes different
+ * remotes/TVs emit. Back first dismisses an open dialog (via the back stack),
+ * then walks up the route; Home jumps straight to the library root.
+ */
+function useRemoteKeys() {
+  const [location, navigate] = useLocation();
+  // The listener binds once; read the live location through a ref so it always
+  // walks up from the page actually showing.
+  const locationRef = useRef(location);
+  locationRef.current = location;
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const editable = isEditableTarget(e);
+
+      // Back: Esc / Backspace / the remote's Back button. Backspace is left to
+      // the field while typing. keyCodes cover webOS (461) and Tizen (10009).
+      const isBack =
+        e.key === 'Escape' ||
+        e.key === 'BrowserBack' ||
+        e.key === 'GoBack' ||
+        e.keyCode === 27 ||
+        e.keyCode === 166 ||
+        e.keyCode === 461 ||
+        e.keyCode === 10009 ||
+        (!editable && (e.key === 'Backspace' || e.keyCode === 8));
+
+      if (isBack) {
+        // An open dialog gets dismissed before we touch the route.
+        if (handleBack()) {
+          e.preventDefault();
+          e.stopPropagation();
+          return;
+        }
+        const parent = parentRoute(locationRef.current);
+        if (parent !== null) {
+          e.preventDefault();
+          e.stopPropagation();
+          navigate(parent);
+        }
+        return;
+      }
+
+      // Home: the remote's Home button. The plain Home key keeps its
+      // start-of-field meaning while typing.
+      const isHome =
+        e.key === 'BrowserHome' ||
+        e.key === 'GoHome' ||
+        e.keyCode === 172 ||
+        (!editable && (e.key === 'Home' || e.keyCode === 36));
+
+      if (isHome) {
+        e.preventDefault();
+        e.stopPropagation();
+        navigate('/'); // any open dialog unmounts with its page
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [navigate]);
+}
+
 function Shell() {
   // Three focus regions navigated by geometry: the Sidebar on the left, and —
   // within each page (see Page.tsx) — the Header bar (↑) above the scrolling
   // body. The guard keeps a highlight alive across navigation.
   useFocusGuard();
+  // Remote Back / Home buttons (and keyboard Esc/Backspace/Home).
+  useRemoteKeys();
   // Rounded corners when windowed; squared off in fullscreen (where rounding
   // would just expose desktop slivers at the screen corners). The Electron
   // window is transparent, so the corners reveal the desktop behind the app.

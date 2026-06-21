@@ -1,4 +1,4 @@
-import { init } from '@noriginmedia/norigin-spatial-navigation';
+import { init, setKeyMap } from '@noriginmedia/norigin-spatial-navigation';
 
 // Initialize the spatial-navigation engine once for the whole app.
 // This binds the arrow keys (and Enter) globally — no manual keydown
@@ -7,6 +7,16 @@ import { init } from '@noriginmedia/norigin-spatial-navigation';
 init({
   debug: false,
   visualDebug: false,
+});
+
+// Treat the remote's Play / Pause buttons as "OK" so they activate the focused
+// item (play a video, open a card) — there's nothing else playing in the browse
+// UI to pause. The engine matches against `event.keyCode || event.code`, so we
+// list both the numeric media-key code and the DOM `code` strings; the defaults
+// (13 / 'Enter') are restored alongside since setKeyMap replaces a key's list.
+// Back / Home are handled separately (see useRemoteKeys in App.tsx).
+setKeyMap({
+  enter: [13, 'Enter', 179, 'MediaPlayPause', 'MediaPlay', 'MediaPause'],
 });
 
 // Focus is driven entirely by the arrow keys (via the engine above). The

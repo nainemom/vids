@@ -6,6 +6,7 @@ import {
   useFocusable,
 } from '@noriginmedia/norigin-spatial-navigation';
 import { FocusableButton } from './FocusableButton';
+import { pushBackHandler } from '../backstack';
 
 export type DialogAction = {
   label?: string;
@@ -68,6 +69,10 @@ export function Dialog({ title, children, actions, onClose }: DialogProps) {
       if (returnFocusKey.current) setFocus(returnFocusKey.current);
     };
   }, [focusKey]);
+
+  // While open, the remote's Back / keyboard Escape dismisses this dialog
+  // (same as Cancel) instead of navigating up a route — see useRemoteKeys.
+  useEffect(() => pushBackHandler(onClose), [onClose]);
 
   return (
     <FocusContext.Provider value={focusKey}>
