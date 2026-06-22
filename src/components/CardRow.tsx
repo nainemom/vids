@@ -23,7 +23,7 @@ export function CardRow({ title, children }: CardRowProps) {
   return (
     <FocusContext.Provider value={focusKey}>
       <section className="flex flex-col gap-3">
-        <h2 className="px-1 text-lg font-semibold text-neutral-400">{title}</h2>
+        <h2 className="text-lg font-semibold text-neutral-400">{title}</h2>
         {/* px/py give the focused card's scale + ring room so they aren't clipped
             by this scroll container (overflow-x also clips the y axis). The first
             and last cards can't scroll to center, so the inline padding is what

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 // A one-shot hand-off between Home's "Continue watching" cards and the detail
 // page they open. Selecting a continue-watching title should drop the user
@@ -16,15 +16,23 @@ export const setHighlight = (hash: string | undefined): void => {
 };
 
 /**
- * Read and clear the pending highlight, once, for the lifetime of a detail page.
- * The useState initializer runs on first render, so the value is captured before
- * any sibling navigation can overwrite it and never re-fires on later renders.
+ * Read the pending highlight, once, for the lifetime of a detail page.
+ *
+ * The initializer is PURE — it only reads `pending`, never clears it. That
+ * matters under React StrictMode, which double-invokes useState initializers in
+ * development: an initializer that cleared `pending` would hand the second
+ * invocation (the one whose result actually commits) an already-null value, so
+ * the highlight was silently lost in dev and the page landed on its first row.
+ *
+ * Clearing happens in an effect instead, after the first commit, so a later
+ * unrelated navigation to this same page doesn't re-apply a stale highlight. The
+ * guard makes it idempotent (StrictMode runs the mount effect cycle twice) and
+ * keeps it from clobbering a newer highlight set by a concurrent navigation.
  */
 export const useHighlightTarget = (): string | null => {
-  const [hash] = useState(() => {
-    const target = pending;
-    pending = null;
-    return target;
-  });
+  const [hash] = useState(() => pending);
+  useEffect(() => {
+    if (pending === hash) pending = null;
+  }, [hash]);
   return hash;
 };

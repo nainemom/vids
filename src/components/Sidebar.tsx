@@ -12,7 +12,7 @@ type IconProps = { className?: string };
 const NAV_ITEMS: { path: string; label: string; Icon: ComponentType<IconProps> }[] =
   [
     { path: '/', label: 'Home', Icon: Home },
-    { path: '/sources', label: 'Source', Icon: FolderOpen },
+    { path: '/sources', label: 'Sources', Icon: FolderOpen },
     { path: '/settings', label: 'Settings', Icon: Settings },
   ];
 

@@ -1,6 +1,7 @@
 import { useLocation } from 'wouter';
-import { RefreshCw } from 'lucide-react';
+import { FolderOpen, RefreshCw } from 'lucide-react';
 import { CardRow } from '../components/CardRow';
+import { FocusableButton } from '../components/FocusableButton';
 import { FocusableCard } from '../components/FocusableCard';
 import { Header } from '../components/Header';
 import { Page } from '../components/Page';
@@ -84,7 +85,7 @@ export function Home() {
               label: status === 'loading' ? 'Scanning…' : 'Refresh',
               icon: (
                 <RefreshCw
-                  className={`h-5 w-5 ${status === 'loading' ? 'animate-spin' : ''}`}
+                  className={`size-5 ${status === 'loading' ? 'animate-spin' : ''}`}
                 />
               ),
               onPress: () => refreshLibrary(sources),
@@ -126,14 +127,39 @@ export function Home() {
           </CardRow>
         ))}
 
+        {/*
+          The empty state always renders a focusable action. Without one, the
+          page body has no focusable leaf, so the only way out of the sidebar
+          (the always-mounted fallback focus group) is back into an empty body —
+          which the focus guard immediately bounces back to the sidebar, trapping
+          focus there. A real button gives ← / → from the sidebar somewhere to
+          land, and doubles as the action the user wants (add a source / refresh).
+        */}
         {rows.length === 0 && (
-          <p className="px-1 text-neutral-500">
-            {status === 'loading'
-              ? 'Scanning your sources…'
-              : sources.length === 0
-                ? 'No sources yet. Add one in Sources to see your library.'
-                : 'No movies or series found. Add a vids.json to a folder, then Refresh.'}
-          </p>
+          <div className="flex flex-col items-center py-12 gap-4 px-1">
+            <p className="text-neutral-500">
+              {status === 'loading'
+                ? 'Scanning your sources…'
+                : 'No movies or series found.'}
+            </p>
+            {sources.length === 0 ? (
+              <FocusableButton
+                label="Manage Sources"
+                icon={<FolderOpen className="size-5" />}
+                onPress={() => navigate('/sources')}
+              />
+            ) : (
+              <FocusableButton
+                label={status === 'loading' ? 'Scanning…' : 'Refresh'}
+                icon={
+                  <RefreshCw
+                    className={`size-5 ${status === 'loading' ? 'animate-spin' : ''}`}
+                  />
+                }
+                onPress={() => refreshLibrary(sources)}
+              />
+            )}
+          </div>
         )}
       </div>
     </Page>

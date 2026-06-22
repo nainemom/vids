@@ -15,13 +15,11 @@ import type { ProgressMap } from './window';
  * final credits don't light up the resume badge.
  */
 export const STARTED_PERCENT = 1;
-export const FINISHED_PERCENT = 95;
 
 /** Whether a percentage falls in the "started but not finished" band. */
 export const isInProgress = (percent: number | undefined): boolean =>
   percent !== undefined &&
-  percent >= STARTED_PERCENT &&
-  percent < FINISHED_PERCENT;
+  percent >= STARTED_PERCENT;
 
 let progress: ProgressMap = {};
 const listeners = new Set<() => void>();
